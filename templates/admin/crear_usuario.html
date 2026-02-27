@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}Crear Nuevo Usuario{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto my-12 bg-white p-8 rounded-xl shadow-lg">
+    
+    <div class="border-b pb-4 mb-8">
+        <h2 class="text-2xl font-bold text-gray-800">Crear Nuevo Usuario</h2>
+        <p class="text-gray-500 text-sm mt-1">Registra un nuevo funcionario, técnico o administrador.</p>
+    </div>
+
+    <form method="post" class="space-y-8">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Nombre Completo</label>
+                    <input type="text" name="nombre_completo" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Correo Electrónico</label>
+                    <input type="email" name="email" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" required>
+                </div>
+                
+                <div class="pt-4 border-t border-gray-100">
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Establecimiento</label>
+                    <select name="establecimiento_id" id="establecimiento_id" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                        <option value="">-- Seleccionar --</option>
+                        {% for est in establecimientos %}
+                            <option value="{{ est.id }}">{{ est.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Departamento</label>
+                    <select name="departamento_id" id="departamento_id" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white disabled:bg-gray-100" disabled>
+                        <option value="">-- Seleccione Establecimiento Primero --</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Sección (Opcional)</label>
+                    <select name="seccion_id" id="seccion_id" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white disabled:bg-gray-100" disabled>
+                        <option value="">-- Seleccione Departamento Primero --</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Rol de Sistema</label>
+                    <select name="rol_id" id="rol_id" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white" required>
+                        <option value="" disabled selected>Selecciona un rol</option>
+                        {% for rol in roles %}
+                            <option value="{{ rol.id }}" data-nombre="{{ rol.nombre }}">{{ rol.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div id="div_puede_asignar" class="hidden bg-yellow-50 p-4 rounded-lg border border-yellow-200 flex items-start gap-3">
+                    <div class="flex items-center h-5">
+                        <input type="checkbox" name="puede_asignar" value="1" id="puede_asignar" class="h-4 w-4 text-yellow-600 border-gray-300 rounded focus:ring-yellow-500">
+                    </div>
+                    <div class="text-sm">
+                        <label for="puede_asignar" class="font-bold text-yellow-800 cursor-pointer">Otorgar permisos para asignar tickets</label>
+                        <p class="text-yellow-700 text-xs mt-1">Permite a este técnico asignar tickets a otros y ver estadísticas globales.</p>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Contraseña Provisional</label>
+                    <input type="password" name="password" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" required>
+                </div>
+
+                <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 flex items-start gap-3">
+                    <div class="flex items-center h-5">
+                        <input type="checkbox" name="forzar_cambio_clave" value="1" id="forzar_cambio_clave" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" checked>
+                    </div>
+                    <div class="text-sm">
+                        <label for="forzar_cambio_clave" class="font-bold text-gray-700 cursor-pointer">Forzar cambio de contraseña</label>
+                        <p class="text-gray-500 text-xs mt-1">Obligatorio al iniciar sesión por primera vez.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-4 pt-6 border-t border-gray-100 mt-8">
+            <a href="{{ url_for('admin.panel') }}" class="px-6 py-2 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition">Cancelar</a>
+            <button type="submit" class="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 transition">Crear Usuario</button>
+        </div>
+    </form>
+</div>
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 1. Mostrar/Ocultar "Puede Asignar" según Rol
+    const rolSelect = document.getElementById('rol_id');
+    const divPuedeAsignar = document.getElementById('div_puede_asignar');
+    
+    rolSelect.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        if (selectedOption.dataset.nombre === 'TECNICO') {
+            divPuedeAsignar.classList.remove('hidden');
+        } else {
+            divPuedeAsignar.classList.add('hidden');
+            document.getElementById('puede_asignar').checked = false;
+        }
+    });
+
+    // 2. Cascada AJAX Establecimiento -> Departamento -> Sección
+    const estSelect = document.getElementById('establecimiento_id');
+    const depSelect = document.getElementById('departamento_id');
+    const secSelect = document.getElementById('seccion_id');
+
+    estSelect.addEventListener('change', function() {
+        const estId = this.value;
+        depSelect.innerHTML = '<option value="">Cargando...</option>';
+        secSelect.innerHTML = '<option value="">-- Seleccione Departamento Primero --</option>';
+        depSelect.disabled = true;
+        secSelect.disabled = true;
+
+        if(estId) {
+            fetch(`/admin/api/departamentos/${estId}`)
+                .then(res => res.json())
+                .then(data => {
+                    depSelect.innerHTML = '<option value="">-- Seleccionar --</option>';
+                    data.departamentos.forEach(d => {
+                        depSelect.innerHTML += `<option value="${d.id}">${d.nombre}</option>`;
+                    });
+                    depSelect.disabled = false;
+                });
+        } else {
+            depSelect.innerHTML = '<option value="">-- Seleccione Establecimiento Primero --</option>';
+        }
+    });
+
+    depSelect.addEventListener('change', function() {
+        const depId = this.value;
+        secSelect.innerHTML = '<option value="">Cargando...</option>';
+        secSelect.disabled = true;
+
+        if(depId) {
+            fetch(`/admin/api/secciones/${depId}`)
+                .then(res => res.json())
+                .then(data => {
+                    secSelect.innerHTML = '<option value="">-- Seleccionar (Opcional) --</option>';
+                    data.secciones.forEach(s => {
+                        secSelect.innerHTML += `<option value="${s.id}">${s.nombre}</option>`;
+                    });
+                    secSelect.disabled = false;
+                });
+        } else {
+            secSelect.innerHTML = '<option value="">-- Seleccione Departamento Primero --</option>';
+        }
+    });
+});
+</script>
+{% endblock %}
+{% endblock %}

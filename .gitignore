@@ -1,0 +1,13 @@
+# .gitignore
+venv/
+__pycache__/
+*.py[cod]
+.env
+.DS_Store
+
+# Ignorar archivos generados en uploads pero mantener las carpetas
+uploads/adjuntos/*
+!uploads/adjuntos/.gitkeep
+
+uploads/informes/*
+!uploads/informes/.gitkeep
