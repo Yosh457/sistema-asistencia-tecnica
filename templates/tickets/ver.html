@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}Detalle TKT-{{ ticket.id }}{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto my-12 space-y-8 px-4 sm:px-0">
+    
+    <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                Ticket: TKT-{{ ticket.id }}
+                {% if ticket.estado.nombre == 'CREADO' %}
+                    <span class="bg-gray-100 text-gray-800 border border-gray-200 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">Ingresado</span>
+                {% elif ticket.estado.nombre == 'ASIGNADO' %}
+                    <span class="bg-yellow-100 text-yellow-800 border border-yellow-200 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">Asignado</span>
+                {% elif ticket.estado.nombre == 'EN_PROCESO' %}
+                    <span class="bg-blue-100 text-blue-800 border border-blue-200 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">En Proceso</span>
+                {% elif ticket.estado.nombre == 'FINALIZADO' %}
+                    <span class="bg-green-100 text-green-800 border border-green-200 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">Finalizado</span>
+                {% endif %}
+            </h2>
+            <p class="text-gray-500 text-sm mt-1">Ingresado el {{ ticket.fecha_creacion.strftime('%d/%m/%Y %H:%M') }}</p>
+        </div>
+        <div>
+            {% if current_user.rol.nombre == 'ADMIN' or (current_user.rol.nombre == 'TECNICO' and current_user.puede_asignar) %}
+                <a href="{{ url_for('tickets.bandeja_global') }}" class="btn btn-secondary text-sm">&larr; Volver a Bandeja Global</a>
+            {% elif current_user.rol.nombre == 'TECNICO' and not current_user.puede_asignar %}
+                <a href="{{ url_for('tickets.bandeja_tecnico') }}" class="btn btn-secondary text-sm">&larr; Volver a Mis Tickets</a>
+            {% else %}
+                <a href="{{ url_for('tickets.mis_tickets') }}" class="btn btn-secondary text-sm">&larr; Volver a Mis Solicitudes</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="lg:col-span-2 space-y-8">
+            
+            <div class="bg-white p-8 rounded-xl shadow-md border border-gray-100">
+                <h3 class="text-lg font-bold text-gray-800 mb-6 border-b pb-2">Descripción del Problema</h3>
+                
+                <div class="mb-6">
+                    <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Asunto</h4>
+                    <p class="text-gray-900 font-semibold text-lg">{{ ticket.asunto }}</p>
+                </div>
+                
+                <div>
+                    <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Detalle</h4>
+                    <div class="bg-gray-50 p-4 rounded-lg text-gray-700 whitespace-pre-wrap text-sm border border-gray-100 leading-relaxed">{{ ticket.descripcion }}</div>
+                </div>
+            </div>
+
+            <div class="bg-white p-8 rounded-xl shadow-md border border-gray-100">
+                <h3 class="text-lg font-bold text-gray-800 mb-6 border-b pb-2">Trazabilidad de la Solicitud</h3>
+                
+                <div class="relative border-l-2 border-gray-200 ml-4 mt-6 space-y-8">
+                    {% for h in ticket.historial %}
+                    <div class="relative pl-8">
+                        <div class="absolute -left-5 top-0 flex items-center justify-center w-10 h-10 rounded-full {{ h.estilo_visual.color_bg }} {{ h.estilo_visual.color_text }} shadow-sm border border-white">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ h.estilo_visual.icono }}"></path>
+                            </svg>
+                        </div>
+                        
+                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-100">
+                            <div class="flex justify-between items-start mb-1">
+                                <h4 class="font-bold text-gray-800">{{ h.estilo_visual.titulo }}</h4>
+                                <span class="text-xs text-gray-500 bg-white px-2 py-1 rounded border border-gray-200">{{ h.fecha.strftime('%d/%m/%Y %H:%M') }}</span>
+                            </div>
+                            <p class="text-sm text-gray-600 mb-2">Realizado por: <strong>{{ h.usuario.nombre_completo if h.usuario else 'Sistema' }}</strong></p>
+                            
+                            {% if h.detalle %}
+                                <div class="mt-2 text-xs text-gray-500 bg-white p-3 rounded border border-gray-200">
+                                    <ul class="list-disc list-inside space-y-1">
+                                    {% for key, val in h.detalle.items() %}
+                                        <li><span class="font-medium capitalize">{{ key.replace('_', ' ') }}:</span> {{ val }}</li>
+                                    {% endfor %}
+                                    </ul>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="text-gray-500 text-sm ml-4 italic">No hay registros en el historial aún.</p>
+                    {% endfor %}
+                </div>
+            </div>
+            
+        </div>
+
+        <div class="space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100">
+                <h3 class="text-md font-bold text-gray-800 mb-4 border-b pb-2">Datos de Gestión</h3>
+                
+                <div class="space-y-4">
+                    <div>
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Solicitante</p>
+                        <p class="text-sm font-semibold text-gray-800">{{ ticket.solicitante.nombre_completo }}</p>
+                        <p class="text-xs text-gray-500">{{ ticket.solicitante.departamento.nombre if ticket.solicitante.departamento else 'Sin unidad' }}</p>
+                    </div>
+                    
+                    <div>
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Técnico Asignado</p>
+                        {% if ticket.tecnico %}
+                            <div class="flex items-center gap-2 mt-1">
+                                <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs">
+                                    {{ ticket.tecnico.nombre_completo[:2].upper() }}
+                                </div>
+                                <div>
+                                    <p class="text-sm font-semibold text-gray-800">{{ ticket.tecnico.nombre_completo }}</p>
+                                </div>
+                            </div>
+                        {% else %}
+                            <p class="text-sm text-gray-500 italic bg-gray-50 p-2 rounded border border-gray-100 text-center">Sin asignar</p>
+                        {% endif %}
+                    </div>
+
+                    {% if ticket.fecha_finalizacion %}
+                    <div class="pt-2 border-t border-gray-100">
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Fecha Resolución</p>
+                        <p class="text-sm font-semibold text-green-700">{{ ticket.fecha_finalizacion.strftime('%d/%m/%Y %H:%M') }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

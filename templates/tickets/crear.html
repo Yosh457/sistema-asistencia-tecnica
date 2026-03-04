@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Nueva Solicitud{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto my-12 bg-white p-8 rounded-xl shadow-lg border border-gray-100">
+    
+    <div class="border-b pb-4 mb-8">
+        <h2 class="text-2xl font-bold text-gray-800">Ingresar Solicitud de Asistencia Técnica</h2>
+        <p class="text-gray-500 text-sm mt-1">Describe detalladamente el problema para que el equipo de TICs pueda ayudarte.</p>
+    </div>
+
+    <form method="post" class="space-y-6">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        
+        <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-6 flex items-start">
+            <svg class="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <div class="text-sm text-blue-800">
+                <strong>Solicitante:</strong> {{ current_user.nombre_completo }} <br>
+                <strong>Unidad:</strong> {{ current_user.departamento.nombre if current_user.departamento else 'Sin unidad registrada' }}
+            </div>
+        </div>
+
+        <div>
+            <label for="asunto" class="block text-sm font-bold text-gray-700 mb-2">Asunto (Breve resumen del problema) <span class="text-red-500">*</span></label>
+            <input type="text" name="asunto" id="asunto" 
+                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition shadow-sm" 
+                   placeholder="Ej: Impresora no enciende, No hay acceso a internet, etc." required maxlength="250">
+        </div>
+
+        <div>
+            <label for="descripcion" class="block text-sm font-bold text-gray-700 mb-2">Descripción Detallada <span class="text-red-500">*</span></label>
+            <textarea name="descripcion" id="descripcion" rows="6" 
+                      class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition shadow-sm resize-none" 
+                      placeholder="Indica qué equipo presenta el problema, códigos de error si aparecen, o cualquier detalle que ayude al técnico..." required></textarea>
+        </div>
+
+        <div class="flex justify-end gap-4 pt-6 border-t border-gray-100 mt-8">
+            <a href="{{ url_for('tickets.mis_tickets') }}" class="px-6 py-3 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition">Cancelar</a>
+            <button type="submit" class="px-6 py-3 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 transition transform hover:-translate-y-0.5">Enviar Solicitud</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

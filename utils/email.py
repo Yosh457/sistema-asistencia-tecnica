@@ -185,7 +185,7 @@ def enviar_credenciales_nuevo_usuario(usuario, password_texto_plano):
 
 def enviar_aviso_nuevo_ticket(ticket, destinatarios_tics):
     """Avisa a la unidad TICs que hay un nuevo ticket."""
-    url = url_for('coordinacion.ver_ticket', id=ticket.id, _external=True)
+    url = url_for('tickets.ver_ticket', id=ticket.id, _external=True)
     contenido = f"""
         <p>Se ha ingresado una nueva solicitud de asistencia técnica.</p>
         <div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #d9534f; margin: 20px 0;">
@@ -203,7 +203,7 @@ def enviar_aviso_nuevo_ticket(ticket, destinatarios_tics):
 def enviar_aviso_asignacion_ticket(ticket):
     """Avisa al técnico que se le asignó un ticket."""
     if not ticket.tecnico: return False
-    url = url_for('tecnico.ver_ticket', id=ticket.id, _external=True)
+    url = url_for('tickets.ver_ticket', id=ticket.id, _external=True)
     contenido = f"""
         <p>Hola <strong>{ticket.tecnico.nombre_completo}</strong>,</p>
         <p>Se te ha asignado un nuevo ticket de asistencia técnica.</p>
@@ -222,7 +222,7 @@ def enviar_aviso_asignacion_ticket(ticket):
 def enviar_aviso_resolucion_ticket(ticket, correo_tics, pdf_path=None):
     """Avisa al solicitante y a TICs que el ticket finalizó."""
     destinatarios = [ticket.solicitante.email, correo_tics]
-    url = url_for('tickets.ver', id=ticket.id, _external=True)
+    url = url_for('tickets.ver_ticket', id=ticket.id, _external=True)
     contenido = f"""
         <p>El ticket de asistencia técnica ha sido resuelto y cerrado.</p>
         <div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #5cb85c; margin: 20px 0;">

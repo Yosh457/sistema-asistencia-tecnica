@@ -20,16 +20,20 @@ def es_password_segura(password):
 def obtener_ruta_redireccion(usuario):
     if not usuario.rol:
         return url_for('auth.login')
-    
+
     if usuario.rol.nombre == 'ADMIN':
         return url_for('admin.panel')
+
     elif usuario.rol.nombre == 'TECNICO':
-        # Próximamente redirigiremos a una bandeja de técnico
-        return url_for('admin.panel') 
+        # Si puede asignar → bandeja global
+        if usuario.puede_asignar:
+            return url_for('tickets.bandeja_global')
+        # Técnico normal → su bandeja personal
+        return url_for('tickets.bandeja_tecnico')
+
     elif usuario.rol.nombre == 'FUNCIONARIO':
-        # Próximamente redirigiremos a su lista de tickets
-        return url_for('admin.panel') 
-    
+        return url_for('tickets.mis_tickets')
+
     return url_for('auth.login')
 
 @auth_bp.route('/login', methods=['GET', 'POST'])

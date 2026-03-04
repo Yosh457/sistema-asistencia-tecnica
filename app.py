@@ -56,6 +56,9 @@ def create_app():
     from blueprints.admin import admin_bp
     app.register_blueprint(admin_bp)
 
+    from blueprints.tickets import tickets_bp
+    app.register_blueprint(tickets_bp)
+
     # Ruta raíz redirige al login
     @app.route('/')
     def index():
