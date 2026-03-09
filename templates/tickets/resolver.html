@@ -1,0 +1,357 @@
+{% extends "base.html" %}
+{% block title %}Resolver Ticket TKT-{{ ticket.id }}{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto my-12 px-4">
+
+    <div class="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
+
+        <div class="flex justify-between items-start border-b pb-6 mb-8">
+            <div>
+                <h2 class="text-2xl font-bold text-gray-800">
+                    Gestión y Reporte Técnico
+                </h2>
+                <p class="text-sm text-gray-500 mt-1">
+                    Puedes guardar avances como bitácora o finalizar el 
+                    <span class="font-bold">TKT-{{ ticket.id }}</span> 
+                    para generar el acta PDF de cierre.
+                </p>
+            </div>
+
+            <a href="{{ url_for('tickets.ver_ticket', id=ticket.id) }}"
+               class="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-200 transition">
+                ← Volver al Detalle
+            </a>
+        </div>
+
+        <div class="bg-gray-50 border border-gray-200 rounded-xl p-5 mb-8">
+            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
+                Problema Reportado
+            </h3>
+            <p class="text-gray-900 font-semibold">{{ ticket.asunto }}</p>
+            <p class="text-sm text-gray-600 mt-1 line-clamp-3">
+                {{ ticket.descripcion }}
+            </p>
+        </div>
+
+        <form method="POST" id="form-resolver" class="space-y-10">
+
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="border border-blue-100 rounded-xl overflow-hidden shadow-sm">
+                <div class="bg-blue-50 px-6 py-3 border-b border-blue-100">
+                    <h3 class="font-bold text-blue-800">
+                        1. Clasificación de la Atención <span class="text-red-500">*</span>
+                    </h3>
+                </div>
+
+                <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            Tipo de Mantención
+                        </label>
+                        <select name="tipo_mantencion_id"
+                                required
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                            <option value="">-- Seleccione --</option>
+                            {% for tipo in tipos_mantencion %}
+                                <option value="{{ tipo.id }}" {% if reporte and reporte.tipo_mantencion_id == tipo.id %}selected{% endif %}>
+                                    {{ tipo.nombre }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            Categoría del Problema
+                        </label>
+                        <select name="categoria_id"
+                                id="categoria_id"
+                                required
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                            <option value="">-- Seleccione --</option>
+                            {% for cat in categorias %}
+                                <option value="{{ cat.id }}"
+                                        data-es-otro="{{ 'true' if cat.nombre|lower == 'otro' else 'false' }}"
+                                        {% if reporte and reporte.categoria_id == cat.id %}selected{% endif %}>
+                                    {{ cat.nombre }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div id="div_categoria_otro" class="{% if not (reporte and reporte.categoria_otro) %}hidden{% endif %} md:col-span-2">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            Especifique la categoría (Otro)
+                        </label>
+                        <input type="text"
+                               name="categoria_otro"
+                               id="categoria_otro"
+                               value="{{ reporte.categoria_otro if reporte and reporte.categoria_otro else '' }}"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                               placeholder="Especifique la categoría...">
+                    </div>
+
+                </div>
+            </div>
+
+
+            <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                <div class="bg-gray-50 px-6 py-3 border-b border-gray-200">
+                    <h3 class="font-bold text-gray-700">
+                        2. Detalle de la Intervención (Árbol Técnico)
+                    </h3>
+                </div>
+
+                <div class="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            Tipo Actividad
+                        </label>
+                        <select name="tipo_actividad_id"
+                                id="tipo_actividad_id"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                            <option value="">-- Seleccione --</option>
+                            {% for tipo in tipos_actividad %}
+                                <option value="{{ tipo.id }}" {% if reporte and reporte.tipo_actividad_id == tipo.id %}selected{% endif %}>
+                                    {{ tipo.nombre }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            Actividad
+                        </label>
+                        <select name="actividad_id"
+                                id="actividad_id"
+                                {% if not actividades_precargadas %}disabled{% endif %}
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg disabled:bg-gray-100 focus:ring-2 focus:ring-blue-500 outline-none">
+                            <option value="">-- Seleccione Tipo Primero --</option>
+                            {% for act in actividades_precargadas %}
+                                <option value="{{ act.id }}" {% if reporte and reporte.actividad_id == act.id %}selected{% endif %}>
+                                    {{ act.nombre }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            Acción Realizada
+                        </label>
+                        <select name="accion_id"
+                                id="accion_id"
+                                {% if not acciones_precargadas %}disabled{% endif %}
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg disabled:bg-gray-100 focus:ring-2 focus:ring-blue-500 outline-none">
+                            <option value="">-- Seleccione Actividad Primero --</option>
+                            {% for acc in acciones_precargadas %}
+                                <option value="{{ acc.id }}" {% if reporte and reporte.accion_id == acc.id %}selected{% endif %}>
+                                    {{ acc.nombre }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                </div>
+            </div>
+
+
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-2">
+                    Bitácora / Observaciones de Cierre
+                </label>
+                <textarea name="observaciones_generales"
+                          rows="4"
+                          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                          placeholder="Escribe los avances de la gestión o el reporte final..."></textarea>
+                <p class="text-xs text-gray-500 mt-2">
+                    Si presionas <span class="font-semibold text-blue-600">Guardar Avance</span>, este texto se registrará en la línea de tiempo del ticket sin cerrarlo. 
+                    Si presionas <span class="font-semibold text-green-600">Finalizar</span>, será la observación final del Acta.
+                </p>
+            </div>
+
+            <div class="flex justify-between items-center pt-6 border-t border-gray-100">
+                
+                <button type="submit" 
+                        name="accion_submit" 
+                        value="guardar" 
+                        id="btn-guardar" 
+                        formnovalidate 
+                        class="px-6 py-3 bg-blue-100 text-blue-700 font-bold rounded-lg hover:bg-blue-200 transition flex items-center gap-2 shadow-sm">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+                    Guardar Avance
+                </button>
+
+                <button type="submit" 
+                        name="accion_submit" 
+                        value="finalizar" 
+                        id="btn-finalizar" 
+                        class="px-6 py-3 bg-green-600 text-white font-bold rounded-lg shadow-md hover:bg-green-700 transition flex items-center gap-2">
+                    ✔ Finalizar y Generar Acta
+                </button>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+
+<div id="loading-modal"
+     class="fixed inset-0 hidden z-50 bg-white/80 backdrop-blur-sm flex items-center justify-center">
+    <div class="text-center">
+        <div class="animate-spin h-12 w-12 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+        <h3 id="loading-text" class="text-lg font-bold text-gray-800">
+            Procesando...
+        </h3>
+        <p class="text-sm text-gray-500 mt-2">
+            Por favor espera un momento.
+        </p>
+    </div>
+</div>
+
+{% endblock %}
+
+
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    const form = document.getElementById("form-resolver");
+    const loadingModal = document.getElementById("loading-modal");
+    const loadingText = document.getElementById("loading-text");
+    
+    // 1. Identificar qué botón se pulsó
+    let botonPresionado = '';
+    document.getElementById("btn-guardar").addEventListener('click', () => botonPresionado = 'guardar');
+    document.getElementById("btn-finalizar").addEventListener('click', () => botonPresionado = 'finalizar');
+
+    // 2. Prevenir doble envío y mostrar spinner adecuado
+    form.addEventListener("submit", function () {
+
+        // ¡LA SOLUCIÓN! Añadimos la acción como un campo oculto antes de deshabilitar los botones
+        const inputAccion = document.createElement('input');
+        inputAccion.type = 'hidden';
+        inputAccion.name = 'accion_submit';
+        inputAccion.value = botonPresionado;
+        form.appendChild(inputAccion);
+
+        // Deshabilitar los botones para evitar múltiples envíos
+        document.getElementById("btn-guardar").disabled = true;
+        document.getElementById("btn-finalizar").disabled = true;
+        
+        if (botonPresionado === 'finalizar') {
+            loadingText.textContent = "Generando PDF y finalizando...";
+        } else {
+            loadingText.textContent = "Guardando avance en la bitácora...";
+        }
+        loadingModal.classList.remove("hidden");
+    });
+
+
+    // 3. CAMPO DINÁMICO "OTRO"
+    const categoriaSelect = document.getElementById("categoria_id");
+    const divOtro = document.getElementById("div_categoria_otro");
+    const inputOtro = document.getElementById("categoria_otro");
+
+    categoriaSelect.addEventListener("change", function () {
+        const selected = this.options[this.selectedIndex];
+        const esOtro = selected.dataset.esOtro === "true";
+
+        if (esOtro) {
+            divOtro.classList.remove("hidden");
+            inputOtro.required = true;
+        } else {
+            divOtro.classList.add("hidden");
+            inputOtro.required = false;
+            inputOtro.value = "";
+        }
+    });
+
+    // 4. UTILIDAD: LIMPIAR SELECT
+    function resetSelect(select, placeholder, disabled = true) {
+        select.innerHTML = "";
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = placeholder;
+        select.appendChild(option);
+        select.disabled = disabled;
+    }
+
+
+    // 5. CARGAR ACTIVIDADES (AJAX seguro)
+    const tipoSelect = document.getElementById("tipo_actividad_id");
+    const actividadSelect = document.getElementById("actividad_id");
+    const accionSelect = document.getElementById("accion_id");
+
+    tipoSelect.addEventListener("change", function () {
+
+        const tipoId = this.value;
+
+        resetSelect(actividadSelect, "Cargando...", true);
+        resetSelect(accionSelect, "-- Seleccione Actividad Primero --", true);
+
+        if (!tipoId) {
+            resetSelect(actividadSelect, "-- Seleccione Tipo Primero --", true);
+            return;
+        }
+
+        fetch(`/tickets/api/actividades/${tipoId}`)
+            .then(response => response.json())
+            .then(data => {
+
+                resetSelect(actividadSelect, "-- Seleccione --", false);
+
+                data.actividades.forEach(act => {
+                    const option = document.createElement("option");
+                    option.value = act.id;
+                    option.textContent = act.nombre;
+                    actividadSelect.appendChild(option);
+                });
+
+            })
+            .catch(() => {
+                resetSelect(actividadSelect, "Error al cargar", true);
+            });
+    });
+
+
+    // 6. CARGAR ACCIONES
+    actividadSelect.addEventListener("change", function () {
+
+        const actividadId = this.value;
+
+        resetSelect(accionSelect, "Cargando...", true);
+
+        if (!actividadId) {
+            resetSelect(accionSelect, "-- Seleccione Actividad Primero --", true);
+            return;
+        }
+
+        fetch(`/tickets/api/acciones/${actividadId}`)
+            .then(response => response.json())
+            .then(data => {
+
+                resetSelect(accionSelect, "-- Seleccione --", false);
+
+                data.acciones.forEach(acc => {
+                    const option = document.createElement("option");
+                    option.value = acc.id;
+                    option.textContent = acc.nombre;
+                    accionSelect.appendChild(option);
+                });
+
+            })
+            .catch(() => {
+                resetSelect(accionSelect, "Error al cargar", true);
+            });
+    });
+
+});
+</script>
+{% endblock %}

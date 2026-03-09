@@ -120,6 +120,34 @@
                     </div>
                     {% endif %}
                 </div>
+
+                {% if current_user.rol.nombre == 'TECNICO' and ticket.tecnico_id == current_user.id and ticket.estado.nombre == 'EN_PROCESO' %}
+                <div class="pt-6 mt-6 border-t border-gray-100">
+                    <a href="{{ url_for('tickets.resolver_ticket', id=ticket.id) }}" class="w-full flex justify-center items-center px-4 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition shadow-md">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        Resolver Ticket
+                    </a>
+                </div>
+                {% endif %}
+
+                {% if ticket.estado.nombre == 'FINALIZADO' and current_user.rol.nombre != 'FUNCIONARIO' %}
+                <div class="pt-6 mt-6 border-t border-gray-100 flex flex-col gap-3">
+                    
+                    <a href="{{ url_for('tickets.ver_informe', id=ticket.id) }}" target="_blank" 
+                       class="w-full flex justify-center items-center px-4 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition shadow-md">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                        Ver Informe
+                    </a>
+                    
+                    <a href="{{ url_for('tickets.ver_informe', id=ticket.id, descargar=1) }}" 
+                       class="w-full flex justify-center items-center px-4 py-3 bg-gray-800 text-white font-bold rounded-lg hover:bg-gray-900 transition shadow-md">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        Descargar PDF
+                    </a>
+                    
+                </div>
+                {% endif %}
+
             </div>
         </div>
     </div>
