@@ -185,6 +185,8 @@ def enviar_credenciales_nuevo_usuario(usuario, password_texto_plano):
 
 def enviar_aviso_nuevo_ticket(ticket, destinatarios_tics):
     """Avisa a la unidad TICs que hay un nuevo ticket."""
+    # NOTA: En routes.py también le envías una lista de TICs. Funciona bien porque destinatarios_tics 
+    # es una lista pura (ej: ['admin@maho.cl']), y enviar_correo_generico espera una lista o string.
     url = url_for('tickets.ver_ticket', id=ticket.id, _external=True)
     contenido = f"""
         <p>Se ha ingresado una nueva solicitud de asistencia técnica.</p>
@@ -219,9 +221,12 @@ def enviar_aviso_asignacion_ticket(ticket):
     html = get_email_template(f"Ticket Asignado: TKT-{ticket.id}", contenido)
     return enviar_correo_generico(ticket.tecnico.email, f"Ticket Asignado - TKT-{ticket.id}", html)
 
-def enviar_aviso_resolucion_ticket(ticket, correo_tics, pdf_path=None):
+def enviar_aviso_resolucion_ticket(ticket, correos_tics, pdf_path=None):
     """Avisa al solicitante y a TICs que el ticket finalizó."""
-    destinatarios = [ticket.solicitante.email, correo_tics]
+    
+    # SOLUCIÓN: Concatenamos la lista de TICs con una lista que contiene el email del solicitante.
+    destinatarios = [ticket.solicitante.email] + correos_tics
+    
     url = url_for('tickets.ver_ticket', id=ticket.id, _external=True)
     contenido = f"""
         <p>El ticket de asistencia técnica ha sido resuelto y cerrado.</p>

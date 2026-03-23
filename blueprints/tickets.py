@@ -1,7 +1,7 @@
 # ==========================================================
 # BLUEPRINT: TICKETS
 # Sistema de Asistencia Técnica
-# Versión robusta con resolución y reporte técnico
+# Versión robusta con resolución, reporte técnico y adjuntos
 # ==========================================================
 
 import os
@@ -16,7 +16,7 @@ from sqlalchemy import or_
 from models import (
     db, Ticket, EstadoTicket, Usuario, Rol,
     ReporteTecnico, TipoMantencion, Categoria,
-    TipoActividad, Actividad, Accion
+    TipoActividad, Actividad, Accion, Adjunto
 )
 
 from utils import (
@@ -28,7 +28,8 @@ from utils import (
     generar_informe_tecnico_pdf,
     tecnico_required,
     requiere_permiso_asignar,
-    obtener_hora_chile
+    obtener_hora_chile,
+    guardar_adjunto_seguro
 )
 
 # ==========================================================
@@ -137,7 +138,16 @@ def crear_ticket():
 
         try:
             db.session.add(nuevo_ticket)
-            db.session.flush()
+            db.session.flush() # Importante: Obtenemos el ID del ticket primero
+
+            # === PROCESAMIENTO DE ADJUNTOS ===
+            archivos = request.files.getlist('adjuntos')
+            for file in archivos:
+                if file.filename:
+                    adjunto_obj = guardar_adjunto_seguro(file, nuevo_ticket.id, 'SOLICITUD', current_user.id)
+                    if adjunto_obj:
+                        db.session.add(adjunto_obj)
+            # ========================================
 
             registrar_historial_ticket(
                 ticket_id=nuevo_ticket.id,
@@ -291,7 +301,7 @@ def confirmar_recepcion(id):
     return redirect(url_for('tickets.ver_ticket', id=id))
 
 # ==========================================================
-# BANDEJA DEL TÉCNICO (Faltaba en el refactor)
+# BANDEJA DEL TÉCNICO
 # ==========================================================
 
 @tickets_bp.route('/bandeja-tecnico')
@@ -399,13 +409,20 @@ def resolver_ticket(id):
                     reporte.actividad_id = int(actividad_id) if actividad_id else None
                     reporte.accion_id = int(accion_id) if accion_id else None
                     
-                    # ⚠️ ELIMINADA la asignación de reporte.observaciones_generales aquí.
-                    # Así no sobreescribimos el reporte físico y dejamos el textarea limpio.
                     db.session.add(reporte)
+
+                # === PROCESAMIENTO DE ADJUNTOS TÉCNICOS ===
+                archivos = request.files.getlist('adjuntos')
+                for file in archivos:
+                    if file.filename:
+                        adjunto_obj = guardar_adjunto_seguro(file, ticket.id, 'RESOLUCION', current_user.id)
+                        if adjunto_obj:
+                            db.session.add(adjunto_obj)
+                # ========================================
 
                 db.session.commit()
                 flash('Avance guardado correctamente en la bitácora.', 'info')
-                # 3. CAMBIO: Redirigir a la vista de detalles (ver_ticket)
+                # 3. Redirigir a la vista de detalles (ver_ticket)
                 return redirect(url_for('tickets.ver_ticket', id=id))
                 
             except Exception as e:
@@ -448,13 +465,22 @@ def resolver_ticket(id):
                 # 3. Historial de Cierre
                 registrar_historial_ticket(ticket.id, 'FINALIZACION', {'mensaje': 'Ticket resuelto y cerrado exitosamente.'})
                 
-                # 4. COMMIT ANTES DE GENERAR PDF (Sugerencia del asesor)
+                # === PROCESAMIENTO DE ADJUNTOS TÉCNICOS ===
+                archivos = request.files.getlist('adjuntos')
+                for file in archivos:
+                    if file.filename:
+                        adjunto_obj = guardar_adjunto_seguro(file, ticket.id, 'RESOLUCION', current_user.id)
+                        if adjunto_obj:
+                            db.session.add(adjunto_obj)
+                # ========================================
+
+                # 4. COMMIT ANTES DE GENERAR PDF
                 db.session.commit()
                 registrar_log("Cierre Ticket", f"TKT-{ticket.id} cerrado por {current_user.nombre_completo}")
 
                 # 5. Generación segura del PDF
                 pdf_dir = os.path.join(current_app.root_path, 'uploads', 'informes')
-                os.makedirs(pdf_dir, exist_ok=True) # Defensa contra borrado de carpetas
+                os.makedirs(pdf_dir, exist_ok=True) 
                 pdf_filename = f"TKT-{ticket.id}_Informe.pdf"
                 pdf_path = os.path.join(pdf_dir, pdf_filename)
                 
@@ -464,9 +490,8 @@ def resolver_ticket(id):
                     pdf_generado = True
                 except Exception as pdf_error:
                     registrar_log("Error PDF", f"Falló generación PDF TKT-{ticket.id}: {str(pdf_error)}")
-                    # No hacemos rollback porque ya está cerrado en BD, solo informamos en log
-
-                # 6. Envío de Correos (Consulta optimizada)
+                    
+                # 6. Envío de Correos
                 tics = Usuario.query.join(Rol).filter(
                     Usuario.activo == True,
                     or_(Usuario.puede_asignar == True, Rol.nombre == 'ADMIN')
@@ -548,7 +573,29 @@ def ver_informe(id):
         flash('El archivo PDF no se encontró en el servidor.', 'danger')
         return redirect(url_for('tickets.ver_ticket', id=id))
 
-    # Lógica dinámica: ¿Vista previa o descarga forzada?
     forzar_descarga = request.args.get('descargar', '0') == '1'
     
     return send_from_directory(pdf_dir, pdf_filename, as_attachment=forzar_descarga)
+
+
+# ==========================================================
+# 8. DESCARGA SEGURA DE ADJUNTOS
+# ==========================================================
+
+@tickets_bp.route('/adjunto/<int:id>')
+@login_required
+def descargar_adjunto(id):
+    """Endpoint seguro para descargar archivos adjuntos."""
+    adjunto = Adjunto.query.get_or_404(id)
+    
+    # Verificar permisos sobre el ticket padre
+    if not puede_ver_ticket(current_user, adjunto.ticket):
+        abort(403)
+        
+    adjuntos_dir = os.path.join(current_app.root_path, 'uploads', 'adjuntos')
+    
+    if not os.path.exists(os.path.join(adjuntos_dir, adjunto.ruta_archivo)):
+        flash('El archivo solicitado ya no se encuentra en el servidor.', 'danger')
+        return redirect(url_for('tickets.ver_ticket', id=adjunto.ticket_id))
+        
+    return send_from_directory(adjuntos_dir, adjunto.ruta_archivo, as_attachment=True, download_name=adjunto.nombre_archivo)

@@ -1,4 +1,8 @@
 # utils/helpers.py
+import os
+import uuid
+from werkzeug.utils import secure_filename
+from flask import current_app
 from datetime import datetime
 import pytz
 from flask_login import current_user
@@ -79,4 +83,57 @@ def safe_int(value):
     try:
         return int(value)
     except (ValueError, TypeError):
+        return None
+
+# ==============================================================================
+# MOTOR DE ARCHIVOS ADJUNTOS
+# ==============================================================================
+
+ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'docx', 'xlsx', 'xls', 'doc'}
+
+def allowed_file(filename):
+    """Verifica si la extensión del archivo está permitida."""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def guardar_adjunto_seguro(file, ticket_id, fase, usuario_id):
+    """
+    Guarda un archivo físicamente con un nombre seguro y devuelve 
+    la instancia del modelo Adjunto para insertarla en la BD.
+    """
+    from models import Adjunto  # Lazy Import
+    
+    if not file or not file.filename or not allowed_file(file.filename):
+        return None
+        
+    filename_original = secure_filename(file.filename)
+    
+    # Mejora de seguridad: Prevenir error si el archivo no tiene extensión
+    if '.' in filename_original:
+        ext = filename_original.rsplit('.', 1)[1].lower()
+    else:
+        ext = 'bin'
+    
+    # Generamos un nombre físico único: tkt_ID_codigo.ext
+    nombre_fisico = f"tkt_{ticket_id}_{uuid.uuid4().hex[:8]}.{ext}"
+    
+    # Aseguramos que exista la carpeta
+    upload_folder = os.path.join(current_app.root_path, 'uploads', 'adjuntos')
+    os.makedirs(upload_folder, exist_ok=True)
+    
+    file_path = os.path.join(upload_folder, nombre_fisico)
+    
+    try:
+        file.save(file_path)
+        
+        nuevo_adjunto = Adjunto(
+            ticket_id=ticket_id,
+            usuario_id=usuario_id,
+            nombre_archivo=file.filename, # Nombre original para el usuario
+            ruta_archivo=nombre_fisico,   # Nombre seguro físico
+            tipo_mime=file.content_type,
+            fase=fase
+        )
+        return nuevo_adjunto
+    except Exception as e:
+        print(f"Error guardando archivo físico: {e}")
         return None

@@ -48,6 +48,30 @@
                 </div>
             </div>
 
+            {% if ticket.adjuntos %}
+            <div class="bg-white p-8 rounded-xl shadow-md border border-gray-100">
+                <h3 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Documentos Adjuntos</h3>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {% for adjunto in ticket.adjuntos %}
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <div class="flex items-center gap-3 overflow-hidden">
+                            <div class="p-2 rounded-lg {% if adjunto.fase == 'SOLICITUD' %}bg-purple-100 text-purple-600{% else %}bg-blue-100 text-blue-600{% endif %}">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
+                            </div>
+                            <div class="truncate">
+                                <p class="text-sm font-semibold text-gray-800 truncate" title="{{ adjunto.nombre_archivo }}">{{ adjunto.nombre_archivo }}</p>
+                                <p class="text-xs text-gray-500">Subido por: {{ adjunto.usuario.nombre_completo.split()[0] }} ({{ adjunto.fase|title }})</p>
+                            </div>
+                        </div>
+                        <a href="{{ url_for('tickets.descargar_adjunto', id=adjunto.id) }}" class="ml-2 text-blue-600 hover:text-blue-800 transition" title="Descargar">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
             <div class="bg-white p-8 rounded-xl shadow-md border border-gray-100">
                 <h3 class="text-lg font-bold text-gray-800 mb-6 border-b pb-2">Trazabilidad de la Solicitud</h3>
                 
