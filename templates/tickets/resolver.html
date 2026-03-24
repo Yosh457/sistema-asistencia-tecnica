@@ -6,14 +6,17 @@
 
     <div class="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
 
+        <!-- ==========================================================
+             CABECERA
+             ========================================================== -->
         <div class="flex justify-between items-start border-b pb-6 mb-8">
             <div>
                 <h2 class="text-2xl font-bold text-gray-800">
                     Gestión y Reporte Técnico
                 </h2>
                 <p class="text-sm text-gray-500 mt-1">
-                    Puedes guardar avances como bitácora o finalizar el 
-                    <span class="font-bold">TKT-{{ ticket.id }}</span> 
+                    Puedes guardar avances como bitácora o finalizar el
+                    <span class="font-bold">TKT-{{ ticket.id }}</span>
                     para generar el acta PDF de cierre.
                 </p>
             </div>
@@ -24,6 +27,9 @@
             </a>
         </div>
 
+        <!-- ==========================================================
+             RESUMEN DEL PROBLEMA REPORTADO
+             ========================================================== -->
         <div class="bg-gray-50 border border-gray-200 rounded-xl p-5 mb-8">
             <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
                 Problema Reportado
@@ -34,9 +40,16 @@
             </p>
         </div>
 
+        <!-- ==========================================================
+             FORMULARIO PRINCIPAL
+             ========================================================== -->
         <form method="POST" id="form-resolver" class="space-y-10" enctype="multipart/form-data">
-
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="accion_submit" id="accion_submit" value="">
+
+            <!-- ======================================================
+                 1. CLASIFICACIÓN DE LA ATENCIÓN
+                 ====================================================== -->
 
             <div class="border border-blue-100 rounded-xl overflow-hidden shadow-sm">
                 <div class="bg-blue-50 px-6 py-3 border-b border-blue-100">
@@ -52,11 +65,13 @@
                             Tipo de Mantención
                         </label>
                         <select name="tipo_mantencion_id"
+                                id="tipo_mantencion_id"
                                 required
                                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                             <option value="">-- Seleccione --</option>
                             {% for tipo in tipos_mantencion %}
-                                <option value="{{ tipo.id }}" {% if reporte and reporte.tipo_mantencion_id == tipo.id %}selected{% endif %}>
+                                <option value="{{ tipo.id }}"
+                                    {% if reporte and reporte.tipo_mantencion_id == tipo.id %}selected{% endif %}>
                                     {{ tipo.nombre }}
                                 </option>
                             {% endfor %}
@@ -81,8 +96,10 @@
                             {% endfor %}
                         </select>
                     </div>
-
-                    <div id="div_categoria_otro" class="{% if not (reporte and reporte.categoria_otro) %}hidden{% endif %} md:col-span-2">
+                    
+                    <!-- Campo dinámico para categoría "Otro" -->
+                    <div id="div_categoria_otro"
+                         class="{% if not (reporte and reporte.categoria_otro) %}hidden{% endif %} md:col-span-2">
                         <label class="block text-sm font-semibold text-gray-700 mb-2">
                             Especifique la categoría (Otro)
                         </label>
@@ -97,7 +114,9 @@
                 </div>
             </div>
 
-
+            <!-- ======================================================
+                 2. ÁRBOL TÉCNICO
+                 ====================================================== -->
             <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
                 <div class="bg-gray-50 px-6 py-3 border-b border-gray-200">
                     <h3 class="font-bold text-gray-700">
@@ -116,7 +135,8 @@
                                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                             <option value="">-- Seleccione --</option>
                             {% for tipo in tipos_actividad %}
-                                <option value="{{ tipo.id }}" {% if reporte and reporte.tipo_actividad_id == tipo.id %}selected{% endif %}>
+                                <option value="{{ tipo.id }}"
+                                    {% if reporte and reporte.tipo_actividad_id == tipo.id %}selected{% endif %}>
                                     {{ tipo.nombre }}
                                 </option>
                             {% endfor %}
@@ -131,9 +151,12 @@
                                 id="actividad_id"
                                 {% if not actividades_precargadas %}disabled{% endif %}
                                 class="w-full px-4 py-2 border border-gray-300 rounded-lg disabled:bg-gray-100 focus:ring-2 focus:ring-blue-500 outline-none">
-                            <option value="">-- Seleccione Tipo Primero --</option>
+                            <option value="">
+                                {% if actividades_precargadas %}-- Seleccione --{% else %}-- Seleccione Tipo Primero --{% endif %}
+                            </option>
                             {% for act in actividades_precargadas %}
-                                <option value="{{ act.id }}" {% if reporte and reporte.actividad_id == act.id %}selected{% endif %}>
+                                <option value="{{ act.id }}"
+                                    {% if reporte and reporte.actividad_id == act.id %}selected{% endif %}>
                                     {{ act.nombre }}
                                 </option>
                             {% endfor %}
@@ -148,9 +171,12 @@
                                 id="accion_id"
                                 {% if not acciones_precargadas %}disabled{% endif %}
                                 class="w-full px-4 py-2 border border-gray-300 rounded-lg disabled:bg-gray-100 focus:ring-2 focus:ring-blue-500 outline-none">
-                            <option value="">-- Seleccione Actividad Primero --</option>
+                            <option value="">
+                                {% if acciones_precargadas %}-- Seleccione --{% else %}-- Seleccione Actividad Primero --{% endif %}
+                            </option>
                             {% for acc in acciones_precargadas %}
-                                <option value="{{ acc.id }}" {% if reporte and reporte.accion_id == acc.id %}selected{% endif %}>
+                                <option value="{{ acc.id }}"
+                                    {% if reporte and reporte.accion_id == acc.id %}selected{% endif %}>
                                     {{ acc.nombre }}
                                 </option>
                             {% endfor %}
@@ -160,44 +186,63 @@
                 </div>
             </div>
 
+            <!-- ======================================================
+                 3. ADJUNTOS TÉCNICOS
+                 ====================================================== -->
             <div class="bg-gray-50 p-4 rounded-lg border border-dashed border-gray-300">
-                <label class="block text-sm font-bold text-gray-700 mb-2">Adjuntar Documentación Técnica <span class="text-gray-400 font-normal text-xs">(Opcional)</span></label>
-                <input type="file" name="adjuntos" multiple accept=".pdf,.png,.jpg,.jpeg,.docx,.xlsx,.doc,.xls" 
+                <label class="block text-sm font-bold text-gray-700 mb-2">
+                    Adjuntar Documentación Técnica
+                    <span class="text-gray-400 font-normal text-xs">(Opcional)</span>
+                </label>
+
+                <input type="file"
+                       name="adjuntos"
+                       multiple
+                       accept=".pdf,.png,.jpg,.jpeg,.docx,.xlsx,.doc,.xls"
                        class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition">
-                <p class="text-xs text-gray-500 mt-2">Adjunta cotizaciones, manuales o capturas de pantalla de la resolución.</p>
+
+                <p class="text-xs text-gray-500 mt-2">
+                    Adjunta cotizaciones, manuales o capturas de pantalla de la resolución.
+                </p>
             </div>
 
-
+            <!-- ======================================================
+                 4. OBSERVACIONES / BITÁCORA
+                 ====================================================== -->
             <div>
                 <label class="block text-sm font-bold text-gray-700 mb-2">
                     Bitácora / Observaciones de Cierre
                 </label>
+
                 <textarea name="observaciones_generales"
                           rows="4"
                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none"
-                          placeholder="Escribe los avances de la gestión o el reporte final..."></textarea>
+                          placeholder="Escribe los avances de la gestión o el reporte final...">{{ reporte.observaciones_generales if reporte and reporte.observaciones_generales else '' }}</textarea>
+
                 <p class="text-xs text-gray-500 mt-2">
-                    Si presionas <span class="font-semibold text-blue-600">Guardar Avance</span>, este texto se registrará en la línea de tiempo del ticket sin cerrarlo. 
-                    Si presionas <span class="font-semibold text-green-600">Finalizar</span>, será la observación final del Acta.
+                    Si presionas <span class="font-semibold text-blue-600">Guardar Avance</span>,
+                    este texto se registrará en la línea de tiempo del ticket sin cerrarlo.
+                    Si presionas <span class="font-semibold text-green-600">Finalizar</span>,
+                    será la observación final del Acta.
                 </p>
             </div>
 
+            <!-- ======================================================
+                 5. BOTONES DE ACCIÓN
+                 ====================================================== -->
             <div class="flex justify-between items-center pt-6 border-t border-gray-100">
-                
-                <button type="submit" 
-                        name="accion_submit" 
-                        value="guardar" 
-                        id="btn-guardar" 
-                        formnovalidate 
+
+                <button type="button"
+                        id="btn-guardar"
                         class="px-6 py-3 bg-blue-100 text-blue-700 font-bold rounded-lg hover:bg-blue-200 transition flex items-center gap-2 shadow-sm">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path>
+                    </svg>
                     Guardar Avance
                 </button>
 
-                <button type="submit" 
-                        name="accion_submit" 
-                        value="finalizar" 
-                        id="btn-finalizar" 
+                <button type="button"
+                        id="btn-finalizar"
                         class="px-6 py-3 bg-green-600 text-white font-bold rounded-lg shadow-md hover:bg-green-700 transition flex items-center gap-2">
                     ✔ Finalizar y Generar Acta
                 </button>
@@ -207,11 +252,13 @@
     </div>
 </div>
 
-
-<div id="loading-modal"
-     class="fixed inset-0 hidden z-50 bg-white/80 backdrop-blur-sm flex items-center justify-center">
+<!-- ==========================================================
+     MODAL DE CARGA
+     ========================================================== -->
+<div id="loading-modal" class="fixed inset-0 hidden z-50 bg-white/80 backdrop-blur-sm flex items-center justify-center">
     <div class="text-center">
-        <div class="animate-spin h-12 w-12 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+        <div class="animate-spin h-12 w-12 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4">
+        </div>
         <h3 id="loading-text" class="text-lg font-bold text-gray-800">
             Procesando...
         </h3>
@@ -225,134 +272,170 @@
 
 {% block scripts %}
 <script>
-document.addEventListener("DOMContentLoaded", function () {
+    document.addEventListener("DOMContentLoaded", function () {
 
-    const form = document.getElementById("form-resolver");
-    const loadingModal = document.getElementById("loading-modal");
-    const loadingText = document.getElementById("loading-text");
-    
-    // 1. Identificar qué botón se pulsó
-    let botonPresionado = '';
-    document.getElementById("btn-guardar").addEventListener('click', () => botonPresionado = 'guardar');
-    document.getElementById("btn-finalizar").addEventListener('click', () => botonPresionado = 'finalizar');
+        // =====================================================
+        // REFERENCIAS PRINCIPALES
+        // =====================================================
+        const form = document.getElementById("form-resolver");
+        const loadingModal = document.getElementById("loading-modal");
+        const loadingText = document.getElementById("loading-text");
 
-    // 2. Prevenir doble envío y mostrar spinner adecuado
-    form.addEventListener("submit", function () {
+        const btnGuardar = document.getElementById("btn-guardar");
+        const btnFinalizar = document.getElementById("btn-finalizar");
+        const accionSubmit = document.getElementById("accion_submit");
 
-        const inputAccion = document.createElement('input');
-        inputAccion.type = 'hidden';
-        inputAccion.name = 'accion_submit';
-        inputAccion.value = botonPresionado;
-        form.appendChild(inputAccion);
-        
-        // Deshabilitar los botones para evitar múltiples envíos
-        document.getElementById("btn-guardar").disabled = true;
-        document.getElementById("btn-finalizar").disabled = true;
-        
-        if (botonPresionado === 'finalizar') {
-            loadingText.textContent = "Generando PDF y finalizando...";
-        } else {
-            loadingText.textContent = "Guardando avance en la bitácora...";
-        }
-        loadingModal.classList.remove("hidden");
-    });
+        // Seguridad: evitar doble envío
+        let formEnviado = false;
 
-    // 3. CAMPO DINÁMICO "OTRO"
-    const categoriaSelect = document.getElementById("categoria_id");
-    const divOtro = document.getElementById("div_categoria_otro");
-    const inputOtro = document.getElementById("categoria_otro");
+        // =====================================================
+        // FUNCIÓN DE LOADING
+        // =====================================================
+        function mostrarCarga(texto) {
+            if (formEnviado) return; // evita doble submit
 
-    categoriaSelect.addEventListener("change", function () {
-        const selected = this.options[this.selectedIndex];
-        const esOtro = selected.dataset.esOtro === "true";
+            formEnviado = true;
 
-        if (esOtro) {
-            divOtro.classList.remove("hidden");
-            inputOtro.required = true;
-        } else {
-            divOtro.classList.add("hidden");
-            inputOtro.required = false;
-            inputOtro.value = "";
-        }
-    });
+            btnGuardar.disabled = true;
+            btnFinalizar.disabled = true;
 
-    // 4. UTILIDAD: LIMPIAR SELECT
-    function resetSelect(select, placeholder, disabled = true) {
-        select.innerHTML = "";
-        const option = document.createElement("option");
-        option.value = "";
-        option.textContent = placeholder;
-        select.appendChild(option);
-        select.disabled = disabled;
-    }
-
-    // 5. CARGAR ACTIVIDADES (AJAX seguro)
-    const tipoSelect = document.getElementById("tipo_actividad_id");
-    const actividadSelect = document.getElementById("actividad_id");
-    const accionSelect = document.getElementById("accion_id");
-
-    tipoSelect.addEventListener("change", function () {
-
-        const tipoId = this.value;
-
-        resetSelect(actividadSelect, "Cargando...", true);
-        resetSelect(accionSelect, "-- Seleccione Actividad Primero --", true);
-
-        if (!tipoId) {
-            resetSelect(actividadSelect, "-- Seleccione Tipo Primero --", true);
-            return;
+            loadingText.textContent = texto;
+            loadingModal.classList.remove("hidden");
         }
 
-        fetch(`/tickets/api/actividades/${tipoId}`)
-            .then(response => response.json())
-            .then(data => {
+        // =====================================================
+        // BOTÓN: GUARDAR AVANCE
+        // =====================================================
+        btnGuardar.addEventListener("click", function () {
 
-                resetSelect(actividadSelect, "-- Seleccione --", false);
+            // Definimos acción para Flask
+            accionSubmit.value = "guardar";
 
-                data.actividades.forEach(act => {
-                    const option = document.createElement("option");
-                    option.value = act.id;
-                    option.textContent = act.nombre;
-                    actividadSelect.appendChild(option);
-                });
+            // Mostrar loading
+            mostrarCarga("Guardando avance en la bitácora...");
 
-            })
-            .catch(() => {
-                resetSelect(actividadSelect, "Error al cargar", true);
-            });
-    });
+            // Enviar formulario manualmente
+            form.submit();
+        });
 
-    // 6. CARGAR ACCIONES
-    actividadSelect.addEventListener("change", function () {
+        // =====================================================
+        // BOTÓN: FINALIZAR
+        // =====================================================
+        btnFinalizar.addEventListener("click", function () {
 
-        const actividadId = this.value;
+            // Validación HTML5 antes de enviar
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
 
-        resetSelect(accionSelect, "Cargando...", true);
+            // Definimos acción para Flask
+            accionSubmit.value = "finalizar";
 
-        if (!actividadId) {
+            // Mostrar loading
+            mostrarCarga("Generando PDF y finalizando...");
+
+            // Enviar formulario
+            form.submit();
+        });
+
+        // =====================================================
+        // LÓGICA: CAMPO "OTRO" EN CATEGORÍA
+        // =====================================================
+        const categoriaSelect = document.getElementById("categoria_id");
+        const divOtro = document.getElementById("div_categoria_otro");
+        const inputOtro = document.getElementById("categoria_otro");
+
+        function actualizarCampoOtro() {
+            const selected = categoriaSelect.options[categoriaSelect.selectedIndex];
+            const esOtro = selected && selected.dataset.esOtro === "true";
+
+            if (esOtro) {
+                divOtro.classList.remove("hidden");
+                inputOtro.required = true;
+            } else {
+                divOtro.classList.add("hidden");
+                inputOtro.required = false;
+                inputOtro.value = "";
+            }
+        }
+
+        categoriaSelect.addEventListener("change", actualizarCampoOtro);
+        actualizarCampoOtro();
+
+        // =====================================================
+        // LÓGICA: SELECT DINÁMICO (TIPO → ACTIVIDAD → ACCIÓN)
+        // =====================================================
+        const tipoSelect = document.getElementById("tipo_actividad_id");
+        const actividadSelect = document.getElementById("actividad_id");
+        const accionSelect = document.getElementById("accion_id");
+
+        function resetSelect(select, placeholder, disabled = true) {
+            select.innerHTML = "";
+            const option = document.createElement("option");
+            option.value = "";
+            option.textContent = placeholder;
+            select.appendChild(option);
+            select.disabled = disabled;
+        }
+
+        // Cargar actividades según tipo
+        tipoSelect.addEventListener("change", function () {
+            const tipoId = this.value;
+
+            resetSelect(actividadSelect, "Cargando...", true);
             resetSelect(accionSelect, "-- Seleccione Actividad Primero --", true);
-            return;
-        }
 
-        fetch(`/tickets/api/acciones/${actividadId}`)
-            .then(response => response.json())
-            .then(data => {
+            if (!tipoId) {
+                resetSelect(actividadSelect, "-- Seleccione Tipo Primero --", true);
+                return;
+            }
 
-                resetSelect(accionSelect, "-- Seleccione --", false);
+            fetch(`/tickets/api/actividades/${tipoId}`)
+                .then(response => response.json())
+                .then(data => {
+                    resetSelect(actividadSelect, "-- Seleccione --", false);
 
-                data.acciones.forEach(acc => {
-                    const option = document.createElement("option");
-                    option.value = acc.id;
-                    option.textContent = acc.nombre;
-                    accionSelect.appendChild(option);
+                    data.actividades.forEach(act => {
+                        const option = document.createElement("option");
+                        option.value = act.id;
+                        option.textContent = act.nombre;
+                        actividadSelect.appendChild(option);
+                    });
+                })
+                .catch(() => {
+                    resetSelect(actividadSelect, "Error al cargar", true);
                 });
+        });
 
-            })
-            .catch(() => {
-                resetSelect(accionSelect, "Error al cargar", true);
-            });
+        // Cargar acciones según actividad
+        actividadSelect.addEventListener("change", function () {
+            const actividadId = this.value;
+
+            resetSelect(accionSelect, "Cargando...", true);
+
+            if (!actividadId) {
+                resetSelect(accionSelect, "-- Seleccione Actividad Primero --", true);
+                return;
+            }
+
+            fetch(`/tickets/api/acciones/${actividadId}`)
+                .then(response => response.json())
+                .then(data => {
+                    resetSelect(accionSelect, "-- Seleccione --", false);
+
+                    data.acciones.forEach(acc => {
+                        const option = document.createElement("option");
+                        option.value = acc.id;
+                        option.textContent = acc.nombre;
+                        accionSelect.appendChild(option);
+                    });
+                })
+                .catch(() => {
+                    resetSelect(accionSelect, "Error al cargar", true);
+                });
+        });
+
     });
-
-});
 </script>
 {% endblock %}

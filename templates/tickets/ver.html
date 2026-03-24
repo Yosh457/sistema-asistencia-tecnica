@@ -20,6 +20,7 @@
             </h2>
             <p class="text-gray-500 text-sm mt-1">Ingresado el {{ ticket.fecha_creacion.strftime('%d/%m/%Y %H:%M') }}</p>
         </div>
+
         <div>
             {% if current_user.rol.nombre == 'ADMIN' or (current_user.rol.nombre == 'TECNICO' and current_user.puede_asignar) %}
                 <a href="{{ url_for('tickets.bandeja_global') }}" class="btn btn-secondary text-sm">&larr; Volver a Bandeja Global</a>
@@ -72,6 +73,7 @@
                 </div>
             </div>
             {% endif %}
+
             <div class="bg-white p-8 rounded-xl shadow-md border border-gray-100">
                 <h3 class="text-lg font-bold text-gray-800 mb-6 border-b pb-2">Trazabilidad de la Solicitud</h3>
                 
@@ -145,10 +147,26 @@
                     {% endif %}
                 </div>
 
-                {% if current_user.rol.nombre == 'TECNICO' and ticket.tecnico_id == current_user.id and ticket.estado.nombre == 'EN_PROCESO' %}
+                {% if current_user.rol.nombre == 'TECNICO' and ticket.tecnico_id == current_user.id and ticket.estado.nombre == 'ASIGNADO' %}
                 <div class="pt-6 mt-6 border-t border-gray-100">
-                    <a href="{{ url_for('tickets.resolver_ticket', id=ticket.id) }}" class="w-full flex justify-center items-center px-4 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition shadow-md">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <form action="{{ url_for('tickets.confirmar_recepcion', id=ticket.id) }}" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit"
+                                class="w-full flex justify-center items-center px-4 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition shadow-md">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            Atender Ticket
+                        </button>
+                    </form>
+                </div>
+                {% elif current_user.rol.nombre == 'TECNICO' and ticket.tecnico_id == current_user.id and ticket.estado.nombre == 'EN_PROCESO' %}
+                <div class="pt-6 mt-6 border-t border-gray-100">
+                    <a href="{{ url_for('tickets.resolver_ticket', id=ticket.id) }}"
+                       class="w-full flex justify-center items-center px-4 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition shadow-md">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
                         Resolver Ticket
                     </a>
                 </div>

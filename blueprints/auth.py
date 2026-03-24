@@ -25,10 +25,8 @@ def obtener_ruta_redireccion(usuario):
         return url_for('admin.panel')
 
     elif usuario.rol.nombre == 'TECNICO':
-        # Si puede asignar → bandeja global
         if usuario.puede_asignar:
             return url_for('tickets.bandeja_global')
-        # Técnico normal → su bandeja personal
         return url_for('tickets.bandeja_tecnico')
 
     elif usuario.rol.nombre == 'FUNCIONARIO':
@@ -55,6 +53,7 @@ def login():
             if usuario.check_password(password):
                 login_user(usuario)
                 registrar_log("Inicio de Sesión", f"Acceso exitoso: {usuario.rol.nombre}")
+                db.session.commit() # TRANSACCIONAL: Guarda log de login exitoso
 
                 if usuario.cambio_clave_requerido:
                     flash('Por seguridad, debes cambiar tu contraseña inicial.', 'warning')
@@ -64,8 +63,10 @@ def login():
                 return redirect(obtener_ruta_redireccion(usuario))
             else:
                 registrar_log("Login Fallido", f"Contraseña incorrecta para: {email}")
+                db.session.commit() # TRANSACCIONAL: Guarda log de fallo
         else:
             registrar_log("Login Fallido", f"Email no registrado: {email}")
+            db.session.commit() # TRANSACCIONAL: Guarda log de fallo
         
         flash('Correo o contraseña incorrectos.', 'danger')
     
@@ -85,6 +86,7 @@ def logout():
         mensaje = 'Has cerrado sesión correctamente.'
         categoria = 'success'
 
+    db.session.commit() # TRANSACCIONAL: Guarda log de cierre antes de desloguear
     logout_user()
     flash(mensaje, categoria)
     return redirect(url_for('auth.login'))
@@ -103,9 +105,10 @@ def cambiar_clave():
         else:
             current_user.set_password(nueva_password)
             current_user.cambio_clave_requerido = False
-            db.session.commit()
             
             registrar_log("Cambio de Clave", "Usuario actualizó su contraseña obligatoria.")
+            db.session.commit() # TRANSACCIONAL: Guarda cambio de clave y log juntos
+            
             logout_user()
             flash('Contraseña actualizada correctamente. Ingresa nuevamente.', 'success')
             return redirect(url_for('auth.login'))
@@ -128,13 +131,15 @@ def solicitar_reseteo():
             
             usuario.reset_token = token
             usuario.reset_token_expiracion = expiracion
-            db.session.commit()
+            
+            registrar_log("Solicitud Reseteo", f"Enviado a {email}")
+            db.session.commit() # TRANSACCIONAL: Guarda el token de reseteo y el log
             
             enviar_correo_reseteo(usuario, token)
-            registrar_log("Solicitud Reseteo", f"Enviado a {email}")
             flash(f'Se ha enviado un enlace a {email}.', 'success')
         else:
             registrar_log("Solicitud Reseteo Fallida", f"Email no existe: {email}")
+            db.session.commit() # TRANSACCIONAL: Guarda el log de fallo
             flash(f'El correo electrónico no se encuentra registrado en el sistema.', 'danger')
             
         return redirect(url_for('auth.login'))
@@ -163,9 +168,10 @@ def resetear_clave(token):
             usuario.set_password(nueva_password)
             usuario.reset_token = None
             usuario.reset_token_expiracion = None
-            db.session.commit()
             
             registrar_log("Recuperación Clave", f"Usuario {usuario.email} recuperó su clave exitosamente.")
+            db.session.commit() # TRANSACCIONAL: Limpia el token, guarda clave nueva y log
+            
             flash('Tu contraseña ha sido restablecida. Inicia sesión.', 'success')
             return redirect(url_for('auth.login'))
         

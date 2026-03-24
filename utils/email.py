@@ -1,4 +1,5 @@
 # utils/email.py
+
 import os
 import smtplib
 from email.mime.text import MIMEText
@@ -7,7 +8,11 @@ from email.mime.application import MIMEApplication
 from email.utils import formataddr
 from flask import url_for
 
+
 def get_email_template(titulo, contenido):
+    """
+    Plantilla base HTML para todos los correos del sistema.
+    """
     return f"""
     <div style="font-family: 'Segoe UI', Arial, sans-serif; color: #333; max-width: 600px; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; margin: 0 auto;">
         <div style="background-color: #275c80; padding: 20px; text-align: center;">
@@ -25,16 +30,18 @@ def get_email_template(titulo, contenido):
 
 def enviar_correo_generico(destinatarios, asunto, cuerpo_html, adjunto_path=None, bcc=None):
     """
-    Envía un correo utilizando SMTP (Gmail) de forma segura y consistente.
+    Envía un correo utilizando SMTP de forma segura y consistente.
 
-    - 'destinatarios' (To): lista o string. Visible en el correo.
-    - 'bcc' (BCC): lista o string. NO visible en el correo (privacidad).
-    - Importante: usamos server.send_message(..., to_addrs=...) para controlar
-      el "envelope" SMTP y NO depender de headers Bcc.
+    Parámetros:
+    - destinatarios: lista o string para campo TO
+    - asunto: asunto del correo
+    - cuerpo_html: contenido HTML del mensaje
+    - adjunto_path: ruta a archivo adjunto (opcional)
+    - bcc: lista o string para copias ocultas
 
-    Esto evita:
-    - exponer correos en envíos masivos
-    - depender de que 'send_message' elimine headers Bcc
+    Notas:
+    - No exponemos BCC en headers.
+    - Normalizamos, limpiamos y deduplicamos destinatarios.
     """
     remitente = os.getenv("EMAIL_USUARIO")
     contrasena = os.getenv("EMAIL_CONTRASENA")
@@ -44,9 +51,7 @@ def enviar_correo_generico(destinatarios, asunto, cuerpo_html, adjunto_path=None
         print("ERROR: Faltan credenciales EMAIL_USUARIO / EMAIL_CONTRASENA en .env")
         return False
 
-    # -----------------------------
-    # 1) Normalizar inputs a listas
-    # -----------------------------
+    # Normalización a listas
     if destinatarios is None:
         destinatarios = []
     if isinstance(destinatarios, str):
@@ -57,9 +62,7 @@ def enviar_correo_generico(destinatarios, asunto, cuerpo_html, adjunto_path=None
     if isinstance(bcc, str):
         bcc = [bcc]
 
-    # -------------------------------------------------
-    # 2) Limpiar vacíos/None y quitar duplicados (orden)
-    # -------------------------------------------------
+    # Limpieza y deduplicación
     destinatarios = [d.strip() for d in destinatarios if d and str(d).strip()]
     bcc = [d.strip() for d in bcc if d and str(d).strip()]
 
@@ -72,15 +75,12 @@ def enviar_correo_generico(destinatarios, asunto, cuerpo_html, adjunto_path=None
         print("ERROR: Faltan destinatarios (To/Bcc).")
         return False
 
-    # -------------------------------------------------------------
-    # 3) Construir el mensaje (headers visibles)
-    # -------------------------------------------------------------
+    # Construcción del mensaje
     msg = MIMEMultipart()
     msg["Subject"] = asunto
     msg["From"] = formataddr(("Asistencia Técnica Notificaciones", remitente))
 
-    # "To" visible: si no hay destinatarios, ponemos el remitente
-    # (así el correo no queda con To vacío)
+    # Si no hay TO visible, dejamos el remitente como visible
     msg["To"] = ", ".join(destinatarios) if destinatarios else remitente
 
     # OJO: NO seteamos msg["Bcc"] a propósito.
@@ -89,7 +89,7 @@ def enviar_correo_generico(destinatarios, asunto, cuerpo_html, adjunto_path=None
     # Cuerpo HTML
     msg.attach(MIMEText(cuerpo_html, "html"))
 
-    # Adjuntar archivo si corresponde
+    # Adjunto opcional
     if adjunto_path and os.path.exists(adjunto_path):
         try:
             with open(adjunto_path, "rb") as f:
@@ -99,13 +99,7 @@ def enviar_correo_generico(destinatarios, asunto, cuerpo_html, adjunto_path=None
         except Exception as e:
             print(f"Error adjuntando archivo: {e}")
 
-    # -------------------------------------------------------------
-    # 4) Enviar: definimos explícitamente el "sobre" (envelope SMTP)
-    # -------------------------------------------------------------
-    # Los receptores reales son: To visibles + BCC ocultos
-    # Si To estaba vacío, el header To quedó como remitente, pero igual
-    # garantizamos que el remitente esté en recipients para que el envío tenga
-    # un destinatario visible coherente.
+    # Destinatarios reales de envío SMTP
     recipients = []
     if destinatarios:
         recipients.extend(destinatarios)
@@ -132,15 +126,21 @@ def enviar_correo_generico(destinatarios, asunto, cuerpo_html, adjunto_path=None
                 from_addr=remitente,
                 to_addrs=recipients
             )
-
         return True
 
     except Exception as e:
         print(f"Error enviando correo '{asunto}': {e}")
         return False
 
-# --- FUNCIONES DE AUTENTICACIÓN ---
+
+# ==========================================================
+# FUNCIONES DE AUTENTICACIÓN
+# ==========================================================
+
 def enviar_correo_reseteo(usuario, token):
+    """
+    Envía correo de restablecimiento de contraseña.
+    """
     url = url_for('auth.resetear_clave', token=token, _external=True)
     contenido = f"""
         <p>Hola <strong>{usuario.nombre_completo}</strong>,</p>
@@ -155,16 +155,17 @@ def enviar_correo_reseteo(usuario, token):
     html = get_email_template("Recuperación de Contraseña", contenido)
     enviar_correo_generico(usuario.email, 'Restablecimiento de Contraseña - Asistencia Técnica', html)
 
+
 def enviar_credenciales_nuevo_usuario(usuario, password_texto_plano):
     """
     Envía correo de bienvenida con credenciales al nuevo usuario.
     """
     url_login = url_for('auth.login', _external=True)
-    
+
     contenido = f"""
         <p>Hola <strong>{usuario.nombre_completo}</strong>,</p>
         <p>Bienvenido al <strong>Sistema de Asistencia Técnica</strong>. Se ha creado tu cuenta de acceso.</p>
-        
+
         <div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #275c80; margin: 20px 0; border-radius: 4px;">
             <p style="margin: 5px 0;"><strong>Usuario (Email):</strong> {usuario.email}</p>
             <p style="margin: 5px 0;"><strong>Contraseña Temporal:</strong> {password_texto_plano}</p>
@@ -175,18 +176,28 @@ def enviar_credenciales_nuevo_usuario(usuario, password_texto_plano):
                 Ingresar al Sistema
             </a>
         </div>
-        
+
         <p style="color: #d9534f; font-size: 13px;"><strong>Importante:</strong> Por seguridad, el sistema te solicitará cambiar esta contraseña al iniciar sesión por primera vez.</p>
     """
     html = get_email_template("Bienvenido al Sistema", contenido)
     return enviar_correo_generico(usuario.email, "Bienvenido - Credenciales de Acceso", html)
 
-# --- FUNCIONES DE TICKETS ---
 
-def enviar_aviso_nuevo_ticket(ticket, destinatarios_tics):
-    """Avisa a la unidad TICs que hay un nuevo ticket."""
-    # NOTA: En routes.py también le envías una lista de TICs. Funciona bien porque destinatarios_tics 
-    # es una lista pura (ej: ['admin@maho.cl']), y enviar_correo_generico espera una lista o string.
+# ==========================================================
+# FUNCIONES DE TICKETS
+# ==========================================================
+
+def enviar_aviso_nuevo_ticket(ticket, destinatarios_gestores):
+    """
+    Avisa a los usuarios gestores/administradores que existe un nuevo ticket.
+
+    Nueva lógica:
+    - Solo se notifica a quienes gestionan la asignación.
+    - Ya NO se considera un correo genérico de unidad dentro de esta función.
+    """
+    if not destinatarios_gestores:
+        return False
+
     url = url_for('tickets.ver_ticket', id=ticket.id, _external=True)
     contenido = f"""
         <p>Se ha ingresado una nueva solicitud de asistencia técnica.</p>
@@ -196,15 +207,26 @@ def enviar_aviso_nuevo_ticket(ticket, destinatarios_tics):
             <p><strong>Asunto:</strong> {ticket.asunto}</p>
         </div>
         <div style="text-align: center; margin: 30px 0;">
-            <a href="{url}" style="background-color: #275c80; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px;">Ver Ticket</a>
+            <a href="{url}" style="background-color: #275c80; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px;">
+                Ver Ticket
+            </a>
         </div>
     """
     html = get_email_template(f"Nueva Solicitud: TKT-{ticket.id}", contenido)
-    enviar_correo_generico(destinatarios_tics, f"Nueva Solicitud de Asistencia - TKT-{ticket.id}", html)
+    return enviar_correo_generico(
+        destinatarios_gestores,
+        f"Nueva Solicitud de Asistencia - TKT-{ticket.id}",
+        html
+    )
+
 
 def enviar_aviso_asignacion_ticket(ticket):
-    """Avisa al técnico que se le asignó un ticket."""
-    if not ticket.tecnico: return False
+    """
+    Avisa al técnico que se le asignó un ticket.
+    """
+    if not ticket.tecnico or not ticket.tecnico.email:
+        return False
+
     url = url_for('tickets.ver_ticket', id=ticket.id, _external=True)
     contenido = f"""
         <p>Hola <strong>{ticket.tecnico.nombre_completo}</strong>,</p>
@@ -215,30 +237,64 @@ def enviar_aviso_asignacion_ticket(ticket):
             <p><strong>Solicitante:</strong> {ticket.solicitante.nombre_completo}</p>
         </div>
         <div style="text-align: center; margin: 30px 0;">
-            <a href="{url}" style="background-color: #275c80; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px;">Confirmar Recepción</a>
+            <a href="{url}" style="background-color: #275c80; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px;">
+                Confirmar Recepción
+            </a>
         </div>
     """
     html = get_email_template(f"Ticket Asignado: TKT-{ticket.id}", contenido)
-    return enviar_correo_generico(ticket.tecnico.email, f"Ticket Asignado - TKT-{ticket.id}", html)
+    return enviar_correo_generico(
+        ticket.tecnico.email,
+        f"Ticket Asignado - TKT-{ticket.id}",
+        html
+    )
 
-def enviar_aviso_resolucion_ticket(ticket, correos_tics, pdf_path=None):
-    """Avisa al solicitante y a TICs que el ticket finalizó."""
-    
-    # SOLUCIÓN: Concatenamos la lista de TICs con una lista que contiene el email del solicitante.
-    destinatarios = [ticket.solicitante.email] + correos_tics
-    
+
+def enviar_aviso_resolucion_ticket(ticket):
+    """
+    Avisa del cierre del ticket SOLO a:
+    - el solicitante
+    - el técnico que cerró la atención
+
+    Nueva lógica:
+    - Ya NO se copia a gestores/admins por defecto
+    - Ya NO se adjunta el PDF
+    - El PDF queda disponible solo dentro del sistema
+    """
+    destinatarios = []
+
+    if ticket.solicitante and ticket.solicitante.email:
+        destinatarios.append(ticket.solicitante.email)
+
+    if ticket.tecnico and ticket.tecnico.email:
+        destinatarios.append(ticket.tecnico.email)
+
+    destinatarios = list(dict.fromkeys(destinatarios))
+
+    if not destinatarios:
+        return False
+
     url = url_for('tickets.ver_ticket', id=ticket.id, _external=True)
+    nombre_tecnico = ticket.tecnico.nombre_completo if ticket.tecnico else 'N/A'
+
     contenido = f"""
         <p>El ticket de asistencia técnica ha sido resuelto y cerrado.</p>
         <div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #5cb85c; margin: 20px 0;">
             <p><strong>Ticket ID:</strong> TKT-{ticket.id}</p>
             <p><strong>Asunto:</strong> {ticket.asunto}</p>
-            <p><strong>Atendido por:</strong> {ticket.tecnico.nombre_completo if ticket.tecnico else 'N/A'}</p>
+            <p><strong>Atendido por:</strong> {nombre_tecnico}</p>
         </div>
-        <p>El Informe Técnico está adjunto a este correo y disponible en el sistema.</p>
+        <p>Para revisar el detalle del caso, debes ingresar al sistema.</p>
         <div style="text-align: center; margin: 30px 0;">
-            <a href="{url}" style="background-color: #275c80; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px;">Ver Detalle en Sistema</a>
+            <a href="{url}" style="background-color: #275c80; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px;">
+                Ver Detalle en Sistema
+            </a>
         </div>
     """
     html = get_email_template(f"Ticket Finalizado: TKT-{ticket.id}", contenido)
-    return enviar_correo_generico(destinatarios, f"Ticket Finalizado - TKT-{ticket.id}", html, adjunto_path=pdf_path)
+
+    return enviar_correo_generico(
+        destinatarios,
+        f"Ticket Finalizado - TKT-{ticket.id}",
+        html
+    )

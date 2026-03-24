@@ -93,8 +93,8 @@ def crear_usuario():
         
         try:
             db.session.add(nuevo_usuario)
-            db.session.commit()
             registrar_log("Creación Usuario", f"Admin creó a {nombre} ({email})")
+            db.session.commit() # TRANSACCIONAL: Guarda usuario y log
             
             if enviar_credenciales_nuevo_usuario(nuevo_usuario, password):
                 flash(f'Usuario creado con éxito. Credenciales enviadas a {email}.', 'success')
@@ -147,8 +147,8 @@ def editar_usuario(id):
             flash('Contraseña actualizada.', 'info')
 
         try:
-            db.session.commit()
             registrar_log("Edición Usuario", f"Admin editó a {usuario.nombre_completo}")
+            db.session.commit() # TRANSACCIONAL: Guarda edición de usuario y log
             flash('Usuario actualizado con éxito.', 'success')
             return redirect(url_for('admin.panel'))
         except Exception as e:
@@ -165,9 +165,11 @@ def toggle_activo(id):
         return redirect(url_for('admin.panel'))
         
     usuario.activo = not usuario.activo
-    db.session.commit()
     estado = "activado" if usuario.activo else "desactivado"
+    
     registrar_log("Cambio Estado", f"Usuario {usuario.nombre_completo} fue {estado}.")
+    db.session.commit() # TRANSACCIONAL: Guarda cambio de estado y log
+    
     flash(f'Usuario {usuario.nombre_completo} {estado}.', 'success')
     return redirect(url_for('admin.panel'))
 
