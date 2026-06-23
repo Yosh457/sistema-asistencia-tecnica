@@ -39,6 +39,13 @@ from utils import (
     guardar_adjunto_seguro
 )
 
+from utils.constants import (
+    ESTADO_CREADO, 
+    ESTADO_ASIGNADO, 
+    ESTADO_EN_PROCESO, 
+    ESTADO_FINALIZADO
+)
+
 # ==========================================================
 # CONFIGURACIÓN DEL BLUEPRINT
 # ==========================================================
@@ -97,16 +104,6 @@ def before_request():
     Todo el módulo de tickets requiere usuario autenticado.
     """
     pass
-
-
-# ==========================================================
-# CONSTANTES DE ESTADO
-# ==========================================================
-
-ESTADO_CREADO = "CREADO"
-ESTADO_ASIGNADO = "ASIGNADO"
-ESTADO_EN_PROCESO = "EN_PROCESO"
-ESTADO_FINALIZADO = "FINALIZADO"
 
 
 # ==========================================================

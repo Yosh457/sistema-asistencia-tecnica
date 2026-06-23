@@ -32,6 +32,7 @@
             </div>
             
             <div class="flex gap-2">
+                <a href="{{ url_for('dashboard.index') }}" class="btn btn-secondary">Dashboard</a>
                 <a href="{{ url_for('catalogos.index') }}" class="btn btn-secondary">Catálogos Técnicos</a>
                 <a href="{{ url_for('admin.ver_logs') }}" class="btn btn-secondary">Ver Logs</a>
                 <a href="{{ url_for('admin.crear_usuario') }}" class="btn btn-primary">Crear Usuario</a>
@@ -72,7 +73,7 @@
                     <tr>
                         <th class="text-left py-3 px-4 font-semibold text-sm">Nombre / Email</th>
                         <th class="text-left py-3 px-4 font-semibold text-sm">Rol</th>
-                        <th class="text-left py-3 px-4 font-semibold text-sm">Unidad / Depto</th>
+                        <th class="text-left py-3 px-4 font-semibold text-sm">Establecimiento / Departamento</th>
                         <th class="text-center py-3 px-4 font-semibold text-sm">Estado</th>
                         <th class="text-center py-3 px-4 font-semibold text-sm">Acciones</th>
                     </tr>

@@ -45,22 +45,7 @@ class Departamento(db.Model):
     )
 
     establecimiento = db.relationship('Establecimiento', back_populates='departamentos')
-    secciones = db.relationship('Seccion', back_populates='departamento', cascade="all, delete-orphan")
     usuarios = db.relationship('Usuario', back_populates='departamento')
-
-class Seccion(db.Model):
-    __tablename__ = 'secciones'
-    id = db.Column(db.Integer, primary_key=True)
-    departamento_id = db.Column(db.Integer, db.ForeignKey('departamentos.id', ondelete='CASCADE'), nullable=False, index=True)
-    nombre = db.Column(db.String(100), nullable=False)
-    activo = db.Column(db.Boolean, default=True)
-
-    __table_args__ = (
-        db.UniqueConstraint('departamento_id', 'nombre', name='uq_seccion_nombre'),
-    )
-
-    departamento = db.relationship('Departamento', back_populates='secciones')
-    usuarios = db.relationship('Usuario', back_populates='seccion')
 
 
 # ==============================================================================
@@ -87,13 +72,11 @@ class Usuario(db.Model, UserMixin):
     rol_id = db.Column(db.Integer, db.ForeignKey('roles.id'), nullable=False, index=True)
     establecimiento_id = db.Column(db.Integer, db.ForeignKey('establecimientos.id'), nullable=True, index=True)
     departamento_id = db.Column(db.Integer, db.ForeignKey('departamentos.id'), nullable=True, index=True)
-    seccion_id = db.Column(db.Integer, db.ForeignKey('secciones.id'), nullable=True, index=True)
 
     # Relaciones
     rol = db.relationship('Rol', back_populates='usuarios')
     establecimiento = db.relationship('Establecimiento', back_populates='usuarios')
     departamento = db.relationship('Departamento', back_populates='usuarios')
-    seccion = db.relationship('Seccion', back_populates='usuarios')
     
     logs = db.relationship('Log', back_populates='usuario')
 

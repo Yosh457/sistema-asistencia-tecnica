@@ -10,7 +10,10 @@ from models import (
     TipoActividad,
     Actividad,
     Accion,
-    ReporteTecnico
+    ReporteTecnico,
+    Establecimiento,
+    Departamento,
+    Usuario
 )
 from utils import admin_required, registrar_log
 
@@ -18,12 +21,9 @@ from utils import admin_required, registrar_log
 # BLUEPRINT DE CATÁLOGOS
 # ----------------------------------------------------------
 # Este módulo administra los diccionarios técnicos del sistema:
-# - Tipos de Mantención
-# - Categorías
-# - Árbol Técnico:
-#     Nivel 1 -> TipoActividad
-#     Nivel 2 -> Actividad
-#     Nivel 3 -> Accion
+# - Tipos de Mantención y Categorías
+# - Organización: Establecimientos y Departamentos
+# - Árbol Técnico: TipoActividad -> Actividad -> Accion
 # ==========================================================
 
 catalogos_bp = Blueprint(
@@ -32,7 +32,6 @@ catalogos_bp = Blueprint(
     template_folder='../templates',
     url_prefix='/admin/catalogos'
 )
-
 
 # ==========================================================
 # HELPERS LOCALES
@@ -53,7 +52,6 @@ def registrar_log_y_confirmar(accion, detalle):
         db.session.rollback()
         print(f"Error persistiendo log '{accion}': {e}")
 
-
 def nombre_obligatorio(nombre, tab):
     """
     Valida que el nombre no venga vacío.
@@ -63,7 +61,6 @@ def nombre_obligatorio(nombre, tab):
         return redirect(url_for('catalogos.index', tab=tab))
     return None
 
-
 def nombre_simple_duplicado(modelo, nombre, tab, mensaje):
     """
     Valida duplicidad simple para catálogos sin padre.
@@ -72,7 +69,6 @@ def nombre_simple_duplicado(modelo, nombre, tab, mensaje):
         flash(mensaje, 'danger')
         return redirect(url_for('catalogos.index', tab=tab))
     return None
-
 
 def nombre_simple_duplicado_excluyendo_actual(modelo, nombre, current_id, tab, mensaje):
     """
@@ -84,7 +80,6 @@ def nombre_simple_duplicado_excluyendo_actual(modelo, nombre, current_id, tab, m
         return redirect(url_for('catalogos.index', tab=tab))
     return None
 
-
 def validar_relacion_obligatoria(relacion_id, tab, mensaje='Debes seleccionar una relación padre válida.'):
     """
     Valida que venga informado el padre en catálogos jerárquicos.
@@ -94,6 +89,12 @@ def validar_relacion_obligatoria(relacion_id, tab, mensaje='Debes seleccionar un
         return redirect(url_for('catalogos.index', tab=tab))
     return None
 
+def departamento_duplicado(nombre, establecimiento_id, current_id=None):
+    q = Departamento.query.filter_by(nombre=nombre, establecimiento_id=establecimiento_id)
+    existente = q.first()
+    if existente and (current_id is None or existente.id != current_id):
+        return True
+    return False
 
 def actividad_duplicada(nombre, tipo_actividad_id, current_id=None):
     """
@@ -106,7 +107,6 @@ def actividad_duplicada(nombre, tipo_actividad_id, current_id=None):
         return True
     return False
 
-
 def accion_duplicada(nombre, actividad_id, current_id=None):
     """
     Valida unicidad compuesta de Acción por:
@@ -117,7 +117,6 @@ def accion_duplicada(nombre, actividad_id, current_id=None):
     if existente and (current_id is None or existente.id != current_id):
         return True
     return False
-
 
 def esta_en_uso_en_reportes(entidad, item_id):
     """
@@ -136,6 +135,15 @@ def esta_en_uso_en_reportes(entidad, item_id):
         return ReporteTecnico.query.filter_by(accion_id=item_id).first() is not None
     return False
 
+def esta_en_uso_usuarios(entidad, item_id):
+    """
+    Verifica si un establecimiento o departamento tiene usuarios activos asignados.
+    """
+    if entidad == 'establecimiento':
+        return Usuario.query.filter_by(establecimiento_id=item_id, activo=True).first() is not None
+    if entidad == 'departamento':
+        return Usuario.query.filter_by(departamento_id=item_id, activo=True).first() is not None
+    return False
 
 # ==========================================================
 # PROTECCIÓN GLOBAL
@@ -150,7 +158,6 @@ def before_request():
     """
     pass
 
-
 # ==========================================================
 # VISTA PRINCIPAL
 # ==========================================================
@@ -161,8 +168,13 @@ def index():
     Vista principal del módulo de catálogos.
     Usa ?tab= para dejar activa la pestaña correspondiente.
     """
-    tab_activa = request.args.get('tab', 'mantencion')
+    tab_activa = request.args.get('tab', 'establecimiento')
 
+    # Organización
+    establecimientos = Establecimiento.query.order_by(Establecimiento.nombre).all()
+    departamentos = Departamento.query.order_by(Departamento.establecimiento_id, Departamento.nombre).all()
+
+    # Clasificación / Árbol
     tipos_mantencion = TipoMantencion.query.order_by(TipoMantencion.nombre).all()
     categorias = Categoria.query.order_by(Categoria.nombre).all()
     tipos_actividad = TipoActividad.query.order_by(TipoActividad.nombre).all()
@@ -172,6 +184,8 @@ def index():
     return render_template(
         'admin/catalogos/index.html',
         tab_activa=tab_activa,
+        establecimientos=establecimientos,
+        departamentos=departamentos,
         tipos_mantencion=tipos_mantencion,
         categorias=categorias,
         tipos_actividad=tipos_actividad,
@@ -179,6 +193,175 @@ def index():
         acciones=acciones
     )
 
+# ==========================================================
+# CRUD: ESTABLECIMIENTOS
+# ==========================================================
+
+@catalogos_bp.route('/establecimiento/crear', methods=['POST'])
+def crear_establecimiento():
+    nombre = request.form.get('nombre', '').strip().upper()
+
+    error = nombre_obligatorio(nombre, 'establecimiento')
+    if error: return error
+
+    error = nombre_simple_duplicado(Establecimiento, nombre, 'establecimiento', f'El establecimiento "{nombre}" ya existe.')
+    if error: return error
+
+    try:
+        nuevo = Establecimiento(nombre=nombre, activo=True)
+        db.session.add(nuevo)
+        registrar_log("Creación Catálogo", f"Creado Establecimiento: {nombre}")
+        db.session.commit()
+        flash('Establecimiento creado exitosamente.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        registrar_log_y_confirmar("Error Catálogo", f"Error creando Establecimiento: {str(e)}")
+        flash('Error al crear el registro.', 'danger')
+
+    return redirect(url_for('catalogos.index', tab='establecimiento'))
+
+@catalogos_bp.route('/establecimiento/editar/<int:id>', methods=['POST'])
+def editar_establecimiento(id):
+    item = Establecimiento.query.get_or_404(id)
+    nuevo_nombre = request.form.get('nombre', '').strip().upper()
+
+    error = nombre_obligatorio(nuevo_nombre, 'establecimiento')
+    if error: return error
+
+    error = nombre_simple_duplicado_excluyendo_actual(Establecimiento, nuevo_nombre, id, 'establecimiento', f'El nombre "{nuevo_nombre}" ya está en uso.')
+    if error: return error
+
+    try:
+        nombre_anterior = item.nombre
+        item.nombre = nuevo_nombre
+        registrar_log("Edición Catálogo", f"Editado Establecimiento ID {id}: '{nombre_anterior}' -> '{nuevo_nombre}'")
+        db.session.commit()
+        flash('Registro actualizado correctamente.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        registrar_log_y_confirmar("Error Catálogo", f"Error editando Establecimiento ID {id}: {str(e)}")
+        flash('Error al actualizar el registro.', 'danger')
+
+    return redirect(url_for('catalogos.index', tab='establecimiento'))
+
+@catalogos_bp.route('/establecimiento/toggle/<int:id>', methods=['POST'])
+def toggle_establecimiento(id):
+    item = Establecimiento.query.get_or_404(id)
+
+    if item.activo and esta_en_uso_usuarios('establecimiento', item.id):
+        flash('No puedes desactivar este establecimiento porque tiene usuarios activos asignados.', 'warning')
+        return redirect(url_for('catalogos.index', tab='establecimiento'))
+
+    try:
+        item.activo = not item.activo
+        estado = "activado" if item.activo else "desactivado"
+        registrar_log("Estado Catálogo", f"Establecimiento '{item.nombre}' fue {estado}.")
+        db.session.commit()
+        flash(f'Registro {estado} correctamente.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        registrar_log_y_confirmar("Error Catálogo", f"Error cambiando estado Establecimiento ID {id}: {str(e)}")
+        flash('Error al cambiar el estado.', 'danger')
+
+    return redirect(url_for('catalogos.index', tab='establecimiento'))
+
+# ==========================================================
+# CRUD: DEPARTAMENTOS
+# ==========================================================
+
+@catalogos_bp.route('/departamento/crear', methods=['POST'])
+def crear_departamento():
+    nombre = request.form.get('nombre', '').strip().capitalize()
+    establecimiento_id = request.form.get('relacion_id')
+
+    error = nombre_obligatorio(nombre, 'departamento')
+    if error: return error
+
+    error = validar_relacion_obligatoria(establecimiento_id, 'departamento', 'El Establecimiento padre es obligatorio.')
+    if error: return error
+
+    try:
+        est_id_int = int(establecimiento_id)
+    except (ValueError, TypeError):
+        flash('El Establecimiento seleccionado no es válido.', 'danger')
+        return redirect(url_for('catalogos.index', tab='departamento'))
+
+    if departamento_duplicado(nombre, est_id_int):
+        flash(f'El departamento "{nombre}" ya existe en este Establecimiento.', 'danger')
+        return redirect(url_for('catalogos.index', tab='departamento'))
+
+    try:
+        nuevo = Departamento(nombre=nombre, establecimiento_id=est_id_int, activo=True)
+        db.session.add(nuevo)
+        registrar_log("Creación Catálogo", f"Creado Departamento: {nombre} (Establecimiento ID: {est_id_int})")
+        db.session.commit()
+        flash('Departamento creado exitosamente.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        registrar_log_y_confirmar("Error Catálogo", f"Error creando Departamento '{nombre}': {str(e)}")
+        flash('Error al crear el registro.', 'danger')
+
+    return redirect(url_for('catalogos.index', tab='departamento'))
+
+@catalogos_bp.route('/departamento/editar/<int:id>', methods=['POST'])
+def editar_departamento(id):
+    item = Departamento.query.get_or_404(id)
+    nuevo_nombre = request.form.get('nombre', '').strip().capitalize()
+    nuevo_est_id = request.form.get('relacion_id')
+
+    error = nombre_obligatorio(nuevo_nombre, 'departamento')
+    if error: return error
+
+    error = validar_relacion_obligatoria(nuevo_est_id, 'departamento', 'El Establecimiento padre es obligatorio.')
+    if error: return error
+
+    try:
+        nuevo_est_id_int = int(nuevo_est_id)
+    except (ValueError, TypeError):
+        flash('El Establecimiento seleccionado no es válido.', 'danger')
+        return redirect(url_for('catalogos.index', tab='departamento'))
+
+    if departamento_duplicado(nuevo_nombre, nuevo_est_id_int, current_id=id):
+        flash(f'El nombre "{nuevo_nombre}" ya está en uso en este Establecimiento.', 'danger')
+        return redirect(url_for('catalogos.index', tab='departamento'))
+
+    try:
+        nombre_anterior = item.nombre
+        padre_anterior = item.establecimiento_id
+
+        item.nombre = nuevo_nombre
+        item.establecimiento_id = nuevo_est_id_int
+
+        registrar_log("Edición Catálogo", f"Editado Departamento ID {id}: '{nombre_anterior}' -> '{nuevo_nombre}'")
+        db.session.commit()
+        flash('Registro actualizado correctamente.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        registrar_log_y_confirmar("Error Catálogo", f"Error editando Departamento ID {id}: {str(e)}")
+        flash('Error al actualizar el registro.', 'danger')
+
+    return redirect(url_for('catalogos.index', tab='departamento'))
+
+@catalogos_bp.route('/departamento/toggle/<int:id>', methods=['POST'])
+def toggle_departamento(id):
+    item = Departamento.query.get_or_404(id)
+
+    if item.activo and esta_en_uso_usuarios('departamento', item.id):
+        flash('No puedes desactivar este departamento porque tiene usuarios activos asignados.', 'warning')
+        return redirect(url_for('catalogos.index', tab='departamento'))
+
+    try:
+        item.activo = not item.activo
+        estado = "activado" if item.activo else "desactivado"
+        registrar_log("Estado Catálogo", f"Departamento '{item.nombre}' fue {estado}.")
+        db.session.commit()
+        flash(f'Registro {estado} correctamente.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        registrar_log_y_confirmar("Error Catálogo", f"Error cambiando estado Departamento ID {id}: {str(e)}")
+        flash('Error al cambiar el estado del registro.', 'danger')
+
+    return redirect(url_for('catalogos.index', tab='departamento'))
 
 # ==========================================================
 # CRUD: TIPOS DE MANTENCIÓN

@@ -25,3 +25,10 @@ from .decorators import (
     tecnico_required,
     requiere_permiso_asignar
 )
+
+from .constants import (
+    ESTADO_CREADO, 
+    ESTADO_ASIGNADO, 
+    ESTADO_EN_PROCESO, 
+    ESTADO_FINALIZADO
+)

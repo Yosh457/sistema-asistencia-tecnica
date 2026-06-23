@@ -4,7 +4,7 @@ from flask_login import login_required, current_user
 from sqlalchemy import or_
 
 # Modelos actualizados
-from models import db, Usuario, Rol, Log, Ticket, Establecimiento, Departamento, Seccion
+from models import db, Usuario, Rol, Log, Ticket, Establecimiento, Departamento
 from utils import registrar_log, admin_required, enviar_credenciales_nuevo_usuario
 
 admin_bp = Blueprint('admin', __name__, template_folder='../templates', url_prefix='/admin')
@@ -67,12 +67,11 @@ def crear_usuario():
         password = request.form.get('password')
         rol_id = request.form.get('rol_id')
         forzar_cambio = request.form.get('forzar_cambio_clave') == '1'
-        puede_asignar = request.form.get('puede_asignar') == '1' # NUEVO
+        puede_asignar = request.form.get('puede_asignar') == '1'
         
         # Validaciones de jerarquía organizacional
         est_id = request.form.get('establecimiento_id')
         dep_id = request.form.get('departamento_id')
-        sec_id = request.form.get('seccion_id')
 
         if Usuario.query.filter_by(email=email).first():
             flash('Error: El correo ya está registrado.', 'danger')
@@ -84,7 +83,6 @@ def crear_usuario():
             rol_id=rol_id,
             establecimiento_id=int(est_id) if est_id else None,
             departamento_id=int(dep_id) if dep_id else None,
-            seccion_id=int(sec_id) if sec_id else None,
             cambio_clave_requerido=forzar_cambio,
             puede_asignar=puede_asignar,
             activo=True
@@ -114,9 +112,8 @@ def editar_usuario(id):
     roles = Rol.query.order_by(Rol.nombre).all()
     establecimientos = Establecimiento.query.order_by(Establecimiento.nombre).all()
     
-    # Necesitamos cargar los departamentos y secciones correspondientes para el dropdown
+    # Solo cargamos departamentos correspondientes al establecimiento
     departamentos = Departamento.query.filter_by(establecimiento_id=usuario.establecimiento_id).all() if usuario.establecimiento_id else []
-    secciones = Seccion.query.filter_by(departamento_id=usuario.departamento_id).all() if usuario.departamento_id else []
 
     if request.method == 'POST':
         email_nuevo = request.form.get('email')
@@ -124,7 +121,7 @@ def editar_usuario(id):
         usuario_existente = Usuario.query.filter_by(email=email_nuevo).first()
         if usuario_existente and usuario_existente.id != id:
             flash('Error: Ese correo ya pertenece a otro usuario.', 'danger')
-            return render_template('admin/editar_usuario.html', usuario=usuario, roles=roles, establecimientos=establecimientos, departamentos=departamentos, secciones=secciones)
+            return render_template('admin/editar_usuario.html', usuario=usuario, roles=roles, establecimientos=establecimientos, departamentos=departamentos)
 
         usuario.nombre_completo = request.form.get('nombre_completo')
         usuario.email = email_nuevo
@@ -132,11 +129,9 @@ def editar_usuario(id):
         
         est_id = request.form.get('establecimiento_id')
         dep_id = request.form.get('departamento_id')
-        sec_id = request.form.get('seccion_id')
         
         usuario.establecimiento_id = int(est_id) if est_id else None
         usuario.departamento_id = int(dep_id) if dep_id else None
-        usuario.seccion_id = int(sec_id) if sec_id else None
         
         usuario.cambio_clave_requerido = request.form.get('forzar_cambio_clave') == '1'
         usuario.puede_asignar = request.form.get('puede_asignar') == '1'
@@ -155,7 +150,7 @@ def editar_usuario(id):
             db.session.rollback()
             flash(f'Error al actualizar: {str(e)}', 'danger')
 
-    return render_template('admin/editar_usuario.html', usuario=usuario, roles=roles, establecimientos=establecimientos, departamentos=departamentos, secciones=secciones)
+    return render_template('admin/editar_usuario.html', usuario=usuario, roles=roles, establecimientos=establecimientos, departamentos=departamentos)
 
 @admin_bp.route('/toggle_activo/<int:id>', methods=['POST'])
 def toggle_activo(id):
@@ -207,8 +202,3 @@ def ver_logs():
 def get_departamentos(establecimiento_id):
     departamentos = Departamento.query.filter_by(establecimiento_id=establecimiento_id, activo=True).all()
     return {'departamentos': [{'id': d.id, 'nombre': d.nombre} for d in departamentos]}
-
-@admin_bp.route('/api/secciones/<int:departamento_id>')
-def get_secciones(departamento_id):
-    secciones = Seccion.query.filter_by(departamento_id=departamento_id, activo=True).all()
-    return {'secciones': [{'id': s.id, 'nombre': s.nombre} for s in secciones]}
